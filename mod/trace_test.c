@@ -10,14 +10,33 @@ MODULE_LICENSE("GPL");
 
 static struct tracepoint *probe_tracepoint = NULL;
 
-void print_tracepoint_name(struct tracepoint *tp, void *priv);
-void probe_func(struct sk_buff *skb, int rc, struct net_device *dev, unsigned int len);
+void
+probe_func(void *unused, struct sk_buff *skb, int rc, struct net_device *dev, unsigned int len)
+{
+	printk("In probe function, skb: %x, dev: %x, len: %d\n", skb, dev, len);
+}
+
+
+void
+test_and_set_tracepoint(struct tracepoint *tp, void *priv)
+{
+	if (!strcmp(tp->name, "net_dev_xmit")) {
+		if (tracepoint_probe_register(tp, probe_func, NULL) != 0) {
+			printk(KERN_ALERT "Failed to register for trace event.\n");
+			probe_tracepoint = NULL;
+			printk(KERN_ALERT "Failed to set tracepoint.\n");
+		} else {
+			probe_tracepoint = tp;
+			printk("Set trace probe\n");
+		}
+	}
+}
 
 int
 init_module(void)
 {
 	// Find the tracepoint and set probe function
-	for_each_kernel_tracepoint(print_tracepoint_name, NULL);
+	for_each_kernel_tracepoint(test_and_set_tracepoint, NULL);
 	return 0;
 }
 
@@ -32,23 +51,3 @@ cleanup_module(void)
 	printk("Removed trace probe.\n");
 }
 
-void
-print_tracepoint_name(struct tracepoint *tp, void *priv)
-{
-	if (!strcmp(tp->name, "net_dev_xmit")) {
-		if (tracepoint_probe_register(tp, probe_func, NULL) != 0) {
-			printk(KERN_ALERT "Failed to register for trace event.\n");
-			probe_tracepoint = NULL;
-			printk(KERN_ALERT "Failed to set tracepoint.\n");
-		} else {
-			probe_tracepoint = tp;
-			printk("Set trace probe\n");
-		}
-	}
-}
-
-void
-probe_func(struct sk_buff *skb, int rc, struct net_device *dev, unsigned int len)
-{
-	printk("In probe function, skb: %x, dev: %x, len: %d\n", skb, dev, len);
-}
