@@ -1,7 +1,9 @@
 obj-m += trace_test.o
 
+release := $(shell uname -r)
+
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+	make -C /lib/modules/$(release)/build M=$(PWD) modules
 
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	make -C /lib/modules/$(release)/build M=$(PWD) clean

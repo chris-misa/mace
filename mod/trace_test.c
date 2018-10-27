@@ -50,5 +50,5 @@ print_tracepoint_name(struct tracepoint *tp, void *priv)
 void
 probe_func(struct sk_buff *skb, int rc, struct net_device *dev, unsigned int len)
 {
-	printk("In probe function.\n");
+	printk("In probe function, skb: %x, dev: %x, len: %d\n", skb, dev, len);
 }
