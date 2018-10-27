@@ -7,6 +7,9 @@
 #include <linux/skbuff.h>
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
+MODULE_DESCRIPTION("Probing tracepoints to monitor network stack latency");
+
 
 static struct tracepoint *probe_tracepoint = NULL;
 
@@ -14,6 +17,12 @@ void
 probe_func(void *unused, struct sk_buff *skb, int rc, struct net_device *dev, unsigned int len)
 {
 	printk("In probe function, skb: %x, dev: %x, len: %d\n", skb, dev, len);
+  if (dev) {
+    if (dev->name) {
+      printk("dev->name: %s\n", dev->name);
+    }
+    printk("dev->ifindex: %d\n", dev->ifindex);
+  }
 }
 
 
@@ -32,16 +41,16 @@ test_and_set_tracepoint(struct tracepoint *tp, void *priv)
 	}
 }
 
-int
-init_module(void)
+int __init
+trace_test_init(void)
 {
 	// Find the tracepoint and set probe function
 	for_each_kernel_tracepoint(test_and_set_tracepoint, NULL);
 	return 0;
 }
 
-void
-cleanup_module(void)
+void __exit
+trace_test_exit(void)
 {
 	if (probe_tracepoint) {
 		if (tracepoint_probe_unregister(probe_tracepoint, probe_func, NULL) != 0) {
@@ -51,3 +60,5 @@ cleanup_module(void)
 	printk("Removed trace probe.\n");
 }
 
+module_init(trace_test_init);
+module_exit(trace_test_exit);
