@@ -8,12 +8,45 @@
 #include <linux/jiffies.h>
 #include <asm/msr.h>
 
+
+#include <linux/fs.h>
+#include <asm/uaccess.h>
+
+#include <linux/slab.h>
+
+#define SUCCESS 0
+#define DEVICE_NAME "mace_test"
+#define MSG_SIZE 256
+#define BUF_SIZE 256
+
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
 MODULE_DESCRIPTION("Probing tracepoints to monitor network stack latency");
 
 static struct tracepoint *probe_tracepoint[2];
 static unsigned long long send_time;
+static unsigned long long *ring_buffer;
+
+//
+// device file handling
+//
+static int dev_is_open = 0;
+static int Major;
+static char *msg;
+static char *msgp = NULL;
+
+static int device_open(struct inode *inode, struct file *fp);
+static int device_release(struct inode *inode, struct file *fp);
+static ssize_t device_read(struct file *fp, char *buf, size_t len, loff_t *offset);
+static ssize_t device_write(struct file *fp, const char *buf, size_t len, loff_t *offset);
+
+static struct file_operations fops = {
+  .read = device_read,
+  .write = device_write,
+  .open = device_open,
+  .release = device_release
+};
 
 void
 probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device *dev, unsigned int len)
@@ -23,8 +56,8 @@ probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device 
   if (dev) {
     cur_time = rdtsc();
     delta_time = cur_time - send_time;
-    printk("[%lu] dev->ifindex: %d\n", cur_time, dev->ifindex);
-    printk("delta time: %lu\n", delta_time);
+    printk("[%llu] dev->ifindex: %d\n", cur_time, dev->ifindex);
+    printk("delta time: %llu\n", delta_time);
   }
 }
 
@@ -34,7 +67,7 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
   // Hard-coded sendto syscall number
   if (id == 44) {
     send_time = rdtsc();
-    printk("[%lu] probably a sendto\n", send_time);
+    printk("[%llu] probably a sendto\n", send_time);
   }
 }
 
@@ -69,8 +102,33 @@ trace_test_init(void)
 {
   probe_tracepoint[0] = NULL;
   probe_tracepoint[1] = NULL;
+
+  // Get memory for buffers
+  ring_buffer = kmalloc(sizeof(long long int) * BUF_SIZE, GFP_KERNEL);
+  if (ring_buffer == NULL) {
+    printk(KERN_ALERT "Failed to alloc memory.\n");
+    return -ENOMEM;
+  }
+  msg = kmalloc(sizeof(char) * MSG_SIZE, GFP_KERNEL);
+  if (msg == NULL) {
+    kfree(ring_buffer);
+    printk(KERN_ALERT "Failed to alloc memory.\n");
+    return -ENOMEM;
+  }
+
+  // Set up device file
+  Major = register_chrdev(0, DEVICE_NAME, &fops);
+  if (Major < 0) {
+    kfree(ring_buffer);
+    kfree(msg);
+    printk(KERN_ALERT "Registering chardev failed with %d\n", Major);
+    return Major;
+  }
+  printk("mace_test assigned major number %d\n", Major);
+
 	// Find the tracepoint and set probe function
 	for_each_kernel_tracepoint(test_and_set_tracepoint, NULL);
+
 	return 0;
 }
 
@@ -88,7 +146,69 @@ trace_test_exit(void)
 		}
 	}
 	printk("Removed trace probes.\n");
+  if (ring_buffer) {
+    kfree(ring_buffer);
+  }
+  if (msg) {
+    kfree(msg);
+  }
+  printk("Freed memory.\n");
+
+  // Remove the device file
+  unregister_chrdev(Major, DEVICE_NAME);
+  printk("Removed device file.\n");
+  
 }
 
 module_init(trace_test_init);
 module_exit(trace_test_exit);
+
+
+static int
+device_open(struct inode *inode, struct file *fp)
+{
+  if (dev_is_open) {
+    return -EBUSY;
+  }
+
+  dev_is_open++;
+  try_module_get(THIS_MODULE);
+
+  sprintf(msg, "This is a test.");
+  msgp = msg;
+
+  return SUCCESS;
+}
+
+static int
+device_release(struct inode *inode, struct file *fp)
+{
+  dev_is_open--;
+  module_put(THIS_MODULE);
+  return 0;
+}
+
+static ssize_t
+device_read(struct file *fp, char *buf, size_t len, loff_t *offset)
+{
+  int bytes_read = 0;
+
+  if (*msgp == 0) {
+    return 0;
+  }
+
+  while (len && *msgp) {
+    put_user(*(msgp++), buf++);
+    len--;
+    bytes_read++;
+  }
+  
+  return bytes_read;
+}
+
+static ssize_t
+device_write(struct file *fp, const char *buf, size_t len, loff_t *offset)
+{
+  printk(KERN_ALERT "Writing not supported.\n");
+  return -EINVAL;
+}
