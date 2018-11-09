@@ -27,6 +27,10 @@ MODULE_DESCRIPTION("Probing tracepoints to monitor network stack latency");
 static struct tracepoint *probe_tracepoint[2];
 static unsigned long long send_time;
 static unsigned long long *ring_buffer;
+static unsigned long head;
+static unsigned long tail;
+
+DECLARE_WAIT_QUEUE_HEAD(wait_q);
 
 //
 // device file handling
@@ -58,6 +62,13 @@ probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device 
     delta_time = cur_time - send_time;
     printk("[%llu] dev->ifindex: %d\n", cur_time, dev->ifindex);
     printk("delta time: %llu\n", delta_time);
+    
+    // Push onto queue
+    ring_buffer[head] = delta_time;
+    head = (head + 1) % BUF_SIZE;
+
+    // Wake up any waiting readers
+    wake_up(&wait_q);
   }
 }
 
@@ -109,6 +120,8 @@ trace_test_init(void)
     printk(KERN_ALERT "Failed to alloc memory.\n");
     return -ENOMEM;
   }
+  head = tail = 0;
+
   msg = kmalloc(sizeof(char) * MSG_SIZE, GFP_KERNEL);
   if (msg == NULL) {
     kfree(ring_buffer);
@@ -193,14 +206,33 @@ device_read(struct file *fp, char *buf, size_t len, loff_t *offset)
 {
   int bytes_read = 0;
 
+  // Read in the next line if needed
+  read_next:
+
   if (*msgp == 0) {
-    return 0;
+    // If we're non-blocking, wait for next entry in queue
+    wait_event_interruptible(wait_q, head == tail);
+
+    if (head == tail) {
+      // Condition still true, must have been a signal
+      return 0;
+    }
+
+    // Form the string, dequeue
+    sprintf(msg, "delta_time: %llu\n", ring_buffer[tail]);
+    tail = (tail + 1) % BUF_SIZE;
   }
 
+  // Write buffer to userspace
   while (len && *msgp) {
     put_user(*(msgp++), buf++);
     len--;
     bytes_read++;
+  }
+
+  // If buffer's not full load in the next string
+  if (!len) {
+    goto read_next;
   }
   
   return bytes_read;
