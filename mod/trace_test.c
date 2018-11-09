@@ -66,6 +66,7 @@ probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device 
     // Push onto queue
     ring_buffer[head] = delta_time;
     head = (head + 1) % BUF_SIZE;
+    printk("pushed onto queue at %lu\n", head);
 
     // Wake up any waiting readers
     wake_up(&wait_q);
@@ -187,7 +188,7 @@ device_open(struct inode *inode, struct file *fp)
   dev_is_open++;
   try_module_get(THIS_MODULE);
 
-  sprintf(msg, "This is a test.");
+  *msg = 0;
   msgp = msg;
 
   return SUCCESS;
@@ -207,11 +208,12 @@ device_read(struct file *fp, char *buf, size_t len, loff_t *offset)
   int bytes_read = 0;
 
   // Read in the next line if needed
-  read_next:
-
   if (*msgp == 0) {
-    // If we're non-blocking, wait for next entry in queue
-    wait_event_interruptible(wait_q, head == tail);
+
+    if (head == tail) {
+      // If we're non-blocking, wait for next entry in queue
+      wait_event_interruptible(wait_q, head != tail);
+    }
 
     if (head == tail) {
       // Condition still true, must have been a signal
@@ -220,6 +222,7 @@ device_read(struct file *fp, char *buf, size_t len, loff_t *offset)
 
     // Form the string, dequeue
     sprintf(msg, "delta_time: %llu\n", ring_buffer[tail]);
+    msgp = msg;
     tail = (tail + 1) % BUF_SIZE;
   }
 
@@ -230,11 +233,6 @@ device_read(struct file *fp, char *buf, size_t len, loff_t *offset)
     bytes_read++;
   }
 
-  // If buffer's not full load in the next string
-  if (!len) {
-    goto read_next;
-  }
-  
   return bytes_read;
 }
 
