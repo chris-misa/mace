@@ -24,6 +24,9 @@
 
 #include <linux/slab.h>
 
+#include <uapi/linux/ip.h>
+#include <uapi/linux/icmp.h>
+
 #define SUCCESS 0
 #define DEVICE_NAME "mace_test"
 #define MSG_SIZE 256
@@ -37,7 +40,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
 MODULE_DESCRIPTION("Probing tracepoints to monitor network stack latency");
 
-static struct tracepoint *probe_tracepoint[3];
+static struct tracepoint *probe_tracepoint[4];
 
 static int expect_send = 0;
 static int expect_recv = 0;
@@ -49,6 +52,7 @@ static long long recv_time = 0;
 struct rtt_lats {
   unsigned long long send;
   unsigned long long recv;
+  unsigned short seq;
 };
 
 static struct rtt_lats *ring_buffer;
@@ -84,62 +88,112 @@ probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device 
 {
   unsigned long long cur_time;
   unsigned long long delta_time;
-  if (expect_send && dev) {
-    cur_time = rdtsc();
-    delta_time = cur_time - send_time;
-#ifdef LOG_EVENTS
-    printk("[%llu] net_dev_xmit with dev->ifindex: %d, delta time: %llu\n", cur_time, dev->ifindex, delta_time);
-#endif
-    expect_send = 0;
-    ping_on_wire = 1;
+
+  struct iphdr *ip;
+  struct icmphdr *icmp;
+
+  // First thing, read the tsc
+  cur_time = rdtsc();
+
+  // Parse ip header, only want icmp packets
+  ip = (struct iphdr *)skb->data;
+  if (ip->protocol == 1
+      && expect_send) {
     
-    cur_lat.send = delta_time;
+    // Parse icmp header, only want echo request packets
+    icmp = (struct icmphdr *)(skb->data + ip->ihl * 4);
+    if (icmp->type == ICMP_ECHO) {
+    
+      delta_time = cur_lat.send = cur_time - send_time;
+      cur_lat.seq = be16_to_cpu(icmp->un.echo.sequence);
+
+      expect_send = 0;
+      ping_on_wire = 1;
+
+#ifdef LOG_EVENTS
+      printk("[%llu] net_dev_xmit with dev->ifindex: %d, delta time: %llu\n",
+        cur_time,
+        dev->ifindex,
+        delta_time);
+#endif
+    }
   }
 }
 
 void
 probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 {
-  recv_time = rdtsc();
+  struct iphdr *ip;
+  struct icmphdr *icmp;
+  unsigned short seq = 0;
+
+  // Parse ip header, only want icmp packets
+  ip = (struct iphdr *)skb->data;
+  if (ip->protocol == 1) {
+
+    // Parse the icmp header, only want echo replies
+    icmp = (struct icmphdr *)(skb->data + ip->ihl * 4);
+    if (icmp->type == ICMP_ECHOREPLY) {
+
+      recv_time = rdtsc();
+      expect_recv = 1;
+      seq = be16_to_cpu(icmp->un.echo.sequence);
+
 #ifdef LOG_EVENTS
-  printk("[%llu] netif_receive_skb with dev->ifindex: %d\n", recv_time, skb->dev->ifindex);
+      printk("[%llu] netif_receive_skb with dev->ifindex: %d icmp seq: %d\n",
+        recv_time,
+        skb->dev->ifindex,
+        seq);
 #endif
-  expect_recv = 1;
+    }
+  }
 }
 
 void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
+  // Catch outgoing packets leaving userspace
+  if (id == SYSCALL_SENDTO) {
+
+    send_time = rdtsc();
+    expect_send = 1;
+
+#ifdef LOG_EVENTS
+    printk("[%llu] sendto\n", send_time);
+#endif
+  }
+}
+
+void
+probe_sys_exit(void *unused, struct pt_regs *regs, long id)
+{
   unsigned long long cur_time;
   unsigned long long delta_time;
-  switch (id) {
-    case SYSCALL_SENDTO:
-      send_time = rdtsc();
+
+  // Catch incoming packets entering userspace
+  if (id == SYSCALL_RECVMSG) {
+
+    // Only process if we're expecting return packet
+    if (expect_recv && ping_on_wire) {
+
+      // First thing, read the tsc
+      cur_time = rdtsc();
+
+      delta_time = cur_lat.recv = cur_time - recv_time;
+      expect_recv = 0;
+      ping_on_wire = 0;
+
+      // Push onto queue
+      ring_buffer[head] = cur_lat;
+      head = (head + 1) % BUF_SIZE;
+
+      // Wake up any waiting readers
+      wake_up(&wait_q);
+
 #ifdef LOG_EVENTS
-      printk("[%llu] sendto\n", send_time);
+      printk("[%llu] recv delta time: %llu\n", cur_time, delta_time);
 #endif
-      expect_send = 1;
-      break;
-    case SYSCALL_RECVMSG:
-      if (expect_recv && ping_on_wire) {
-        cur_time = rdtsc();
-        delta_time = cur_time - recv_time;
-#ifdef LOG_EVENTS
-        printk("[%llu] recv delta time: %llu\n", cur_time, delta_time);
-#endif
-        expect_recv = 0;
-        ping_on_wire = 0;
-
-        cur_lat.recv = delta_time;
-
-        // Push onto queue
-        ring_buffer[head] = cur_lat;
-        head = (head + 1) % BUF_SIZE;
-
-        // Wake up any waiting readers
-        wake_up(&wait_q);
-      }
-      break;
+    }
   }
 }
 
@@ -162,6 +216,10 @@ test_and_set_tracepoint(struct tracepoint *tp, void *priv)
     ret = tracepoint_probe_register(tp, probe_netif_receive_skb, NULL);
     probe_tracepoint[2] = tp;
     found = 1;
+  } else if (!strcmp(tp->name, "sys_exit")) {
+    ret = tracepoint_probe_register(tp, probe_sys_exit, NULL);
+    probe_tracepoint[3] = tp;
+    found = 1;
   }
   
   if (found) {
@@ -179,6 +237,7 @@ trace_test_init(void)
   probe_tracepoint[0] = NULL;
   probe_tracepoint[1] = NULL;
   probe_tracepoint[2] = NULL;
+  probe_tracepoint[3] = NULL;
 
   // Get memory for buffers
   ring_buffer = kmalloc(sizeof(struct rtt_lats) * BUF_SIZE, GFP_KERNEL);
@@ -230,6 +289,12 @@ trace_test_exit(void)
       printk(KERN_ALERT "Failed to unregister netif_receive_skb traceprobe.\n");
     }
   }
+  if (probe_tracepoint[3]) {
+    if (tracepoint_probe_unregister(probe_tracepoint[3], probe_netif_receive_skb, NULL) != 0) {
+      printk(KERN_ALERT "Failed to unregister sys_exit traceprobe.\n");
+    }
+  }
+
 
 	printk("Removed trace probes.\n");
   if (ring_buffer) {
