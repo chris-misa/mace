@@ -26,6 +26,9 @@
 
 #include <uapi/linux/ip.h>
 #include <uapi/linux/icmp.h>
+#include <uapi/linux/if_ether.h>
+
+#include <asm/syscall.h>
 
 #define SUCCESS 0
 #define DEVICE_NAME "mace_test"
@@ -96,12 +99,15 @@ probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device 
   cur_time = rdtsc();
 
   // Parse ip header, only want icmp packets
-  ip = (struct iphdr *)skb->data;
+  ip = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
+
   if (ip->protocol == 1
       && expect_send) {
     
     // Parse icmp header, only want echo request packets
-    icmp = (struct icmphdr *)(skb->data + ip->ihl * 4);
+    icmp = (struct icmphdr *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr));
+    printk("in net_dev_xmit with icmp type: %d\n", icmp->type);
+
     if (icmp->type == ICMP_ECHO) {
     
       delta_time = cur_lat.send = cur_time - send_time;
@@ -165,13 +171,13 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 }
 
 void
-probe_sys_exit(void *unused, struct pt_regs *regs, long id)
+probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
   unsigned long long cur_time;
   unsigned long long delta_time;
 
   // Catch incoming packets entering userspace
-  if (id == SYSCALL_RECVMSG) {
+  if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
 
     // Only process if we're expecting return packet
     if (expect_recv && ping_on_wire) {
@@ -290,7 +296,7 @@ trace_test_exit(void)
     }
   }
   if (probe_tracepoint[3]) {
-    if (tracepoint_probe_unregister(probe_tracepoint[3], probe_netif_receive_skb, NULL) != 0) {
+    if (tracepoint_probe_unregister(probe_tracepoint[3], probe_sys_exit, NULL) != 0) {
       printk(KERN_ALERT "Failed to unregister sys_exit traceprobe.\n");
     }
   }
