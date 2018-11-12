@@ -3,6 +3,11 @@
 //
 // Currently targets ping measurements.
 //
+// Required parameters:
+//
+//   @outer_dev:  The device id of the outer device
+//   @inner_pid:  The pid of the process issuing pings
+//
 // 2018, Chris Misa
 // 
 
@@ -15,7 +20,6 @@
 #include <linux/tracepoint.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/jiffies.h>
 #include <asm/msr.h>
 
 
@@ -43,9 +47,15 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
 MODULE_DESCRIPTION("Probing tracepoints to monitor network stack latency");
 
+// Param: outer_dev
 static int outer_dev = -1;
 module_param(outer_dev, int, 0);
 MODULE_PARM_DESC(outer_dev, "Device id of the outer device");
+
+// Param: inner_pid
+static int inner_pid = -1;
+module_param(inner_pid, int, 0);
+MODULE_PARM_DESC(inner_pid, "PID of the inner userspace process");
 
 static struct tracepoint *probe_tracepoint[4];
 
@@ -112,7 +122,6 @@ probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device 
       
       // Parse icmp header, only want echo request packets
       icmp = (struct icmphdr *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr));
-      printk("in net_dev_xmit with icmp type: %d\n", icmp->type);
 
       if (icmp->type == ICMP_ECHO) {
       
@@ -168,8 +177,9 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
-  // Catch outgoing packets leaving userspace
-  if (id == SYSCALL_SENDTO) {
+  // Catch outgoing packets leaving userspace from target pid
+  if (id == SYSCALL_SENDTO
+   && current->pid == inner_pid) {
 
     send_time = rdtsc();
     expect_send = 1;
@@ -186,8 +196,9 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
   unsigned long long cur_time;
   unsigned long long delta_time;
 
-  // Catch incoming packets entering userspace
-  if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
+  // Catch incoming packets entering userspace in target pid
+  if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG
+   && current->pid == inner_pid) {
 
     // Only process if we're expecting return packet
     if (expect_recv && ping_on_wire) {
@@ -257,6 +268,11 @@ trace_test_init(void)
 
   if (outer_dev < 0) {
     printk(KERN_ALERT "Must set outer_dev=<valid device id>\n");
+    return -1;
+  }
+
+  if (inner_pid < 0) {
+    printk(KERN_ALERT "Must set inner_pid=<valid pid>\n");
     return -1;
   }
 
