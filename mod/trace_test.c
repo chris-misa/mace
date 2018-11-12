@@ -43,6 +43,10 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
 MODULE_DESCRIPTION("Probing tracepoints to monitor network stack latency");
 
+static int outer_dev = -1;
+module_param(outer_dev, int, 0);
+MODULE_PARM_DESC(outer_dev, "Device id of the outer device");
+
 static struct tracepoint *probe_tracepoint[4];
 
 static int expect_send = 0;
@@ -95,33 +99,36 @@ probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device 
   struct iphdr *ip;
   struct icmphdr *icmp;
 
-  // First thing, read the tsc
-  cur_time = rdtsc();
+  if (dev->ifindex == outer_dev) {
 
-  // Parse ip header, only want icmp packets
-  ip = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
+    // First thing, read the tsc
+    cur_time = rdtsc();
 
-  if (ip->protocol == 1
-      && expect_send) {
-    
-    // Parse icmp header, only want echo request packets
-    icmp = (struct icmphdr *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr));
-    printk("in net_dev_xmit with icmp type: %d\n", icmp->type);
+    // Parse ip header, only want icmp packets
+    ip = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
 
-    if (icmp->type == ICMP_ECHO) {
-    
-      delta_time = cur_lat.send = cur_time - send_time;
-      cur_lat.seq = be16_to_cpu(icmp->un.echo.sequence);
+    if (ip->protocol == 1
+        && expect_send) {
+      
+      // Parse icmp header, only want echo request packets
+      icmp = (struct icmphdr *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr));
+      printk("in net_dev_xmit with icmp type: %d\n", icmp->type);
 
-      expect_send = 0;
-      ping_on_wire = 1;
+      if (icmp->type == ICMP_ECHO) {
+      
+        delta_time = cur_lat.send = cur_time - send_time;
+        cur_lat.seq = be16_to_cpu(icmp->un.echo.sequence);
+
+        expect_send = 0;
+        ping_on_wire = 1;
 
 #ifdef LOG_EVENTS
-      printk("[%llu] net_dev_xmit with dev->ifindex: %d, delta time: %llu\n",
-        cur_time,
-        dev->ifindex,
-        delta_time);
+        printk("[%llu] net_dev_xmit with dev->ifindex: %d, delta time: %llu\n",
+          cur_time,
+          dev->ifindex,
+          delta_time);
 #endif
+      }
     }
   }
 }
@@ -133,24 +140,27 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
   struct icmphdr *icmp;
   unsigned short seq = 0;
 
-  // Parse ip header, only want icmp packets
-  ip = (struct iphdr *)skb->data;
-  if (ip->protocol == 1) {
+  if (skb->dev && skb->dev->ifindex == outer_dev) {
 
-    // Parse the icmp header, only want echo replies
-    icmp = (struct icmphdr *)(skb->data + ip->ihl * 4);
-    if (icmp->type == ICMP_ECHOREPLY) {
+    // Parse ip header, only want icmp packets
+    ip = (struct iphdr *)skb->data;
+    if (ip->protocol == 1) {
 
-      recv_time = rdtsc();
-      expect_recv = 1;
-      seq = be16_to_cpu(icmp->un.echo.sequence);
+      // Parse the icmp header, only want echo replies
+      icmp = (struct icmphdr *)(skb->data + ip->ihl * 4);
+      if (icmp->type == ICMP_ECHOREPLY) {
 
-#ifdef LOG_EVENTS
-      printk("[%llu] netif_receive_skb with dev->ifindex: %d icmp seq: %d\n",
-        recv_time,
-        skb->dev->ifindex,
-        seq);
-#endif
+        recv_time = rdtsc();
+        expect_recv = 1;
+        seq = be16_to_cpu(icmp->un.echo.sequence);
+
+  #ifdef LOG_EVENTS
+        printk("[%llu] netif_receive_skb with dev->ifindex: %d icmp seq: %d\n",
+          recv_time,
+          skb->dev->ifindex,
+          seq);
+  #endif
+      }
     }
   }
 }
@@ -244,6 +254,11 @@ trace_test_init(void)
   probe_tracepoint[1] = NULL;
   probe_tracepoint[2] = NULL;
   probe_tracepoint[3] = NULL;
+
+  if (outer_dev < 0) {
+    printk(KERN_ALERT "Must set outer_dev=<valid device id>\n");
+    return -1;
+  }
 
   // Get memory for buffers
   ring_buffer = kmalloc(sizeof(struct rtt_lats) * BUF_SIZE, GFP_KERNEL);
@@ -364,7 +379,8 @@ device_read(struct file *fp, char *buf, size_t len, loff_t *offset)
     }
 
     // Form the string, dequeue
-    sprintf(msg, "send latency: %llu recv latency: %llu\n",
+    sprintf(msg, "seq: %d, send latency: %llu recv latency: %llu\n",
+      ring_buffer[tail].seq,
       ring_buffer[tail].send,
       ring_buffer[tail].recv);
     msgp = msg;
