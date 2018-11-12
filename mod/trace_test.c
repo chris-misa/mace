@@ -132,10 +132,11 @@ probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device 
         ping_on_wire = 1;
 
 #ifdef LOG_EVENTS
-        printk("[%llu] net_dev_xmit with dev->ifindex: %d, delta time: %llu\n",
+        printk("[%llu] net_dev_xmit with dev->ifindex: %d, delta time: %llu, icmp seq: %d\n",
           cur_time,
           dev->ifindex,
-          delta_time);
+          delta_time,
+	  cur_lat.seq);
 #endif
       }
     }
@@ -147,7 +148,6 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 {
   struct iphdr *ip;
   struct icmphdr *icmp;
-  unsigned short seq = 0;
 
   if (skb->dev && skb->dev->ifindex == outer_dev) {
 
@@ -161,13 +161,11 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 
         recv_time = rdtsc();
         expect_recv = 1;
-        seq = be16_to_cpu(icmp->un.echo.sequence);
 
   #ifdef LOG_EVENTS
-        printk("[%llu] netif_receive_skb with dev->ifindex: %d icmp seq: %d\n",
+        printk("[%llu] netif_receive_skb with dev->ifindex: %d\n",
           recv_time,
-          skb->dev->ifindex,
-          seq);
+          skb->dev->ifindex);
   #endif
       }
     }
