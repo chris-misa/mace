@@ -59,6 +59,8 @@ MODULE_PARM_DESC(inner_pid, "PID of the inner userspace process");
 
 static struct tracepoint *probe_tracepoint[4];
 
+static int first_time = 1;
+
 static int expect_send = 0;
 static int expect_recv = 0;
 static int ping_on_wire = 0;
@@ -394,13 +396,17 @@ device_read(struct file *fp, char *buf, size_t len, loff_t *offset)
       return 0;
     }
 
-    // Form the string, dequeue
-    sprintf(msg, "seq: %d, send latency: %llu recv latency: %llu\n",
-      ring_buffer[tail].seq,
-      ring_buffer[tail].send,
-      ring_buffer[tail].recv);
+    if (first_time) {
+      sprintf(msg, "tsc_khz: %d\n", tsc_khz);
+    } else {
+      // Form the string, dequeue
+      sprintf(msg, "seq: %d, send latency: %llu us recv latency: %llu us\n",
+        ring_buffer[tail].seq,
+        ring_buffer[tail].send,
+        ring_buffer[tail].recv);
+      tail = (tail + 1) % BUF_SIZE;
+    }
     msgp = msg;
-    tail = (tail + 1) % BUF_SIZE;
   }
 
   // Write buffer to userspace
