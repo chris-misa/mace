@@ -403,7 +403,7 @@ device_read(struct file *fp, char *buf, size_t len, loff_t *offset)
       }
 
       // Form the string, dequeue
-      sprintf(msg, "seq: %d, send latency: %llu us recv latency: %llu us\n",
+      sprintf(msg, "seq: %d, send latency: %llu recv latency: %llu\n",
         ring_buffer[tail].seq,
         ring_buffer[tail].send,
         ring_buffer[tail].recv);

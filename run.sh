@@ -25,6 +25,8 @@ PING_ARGS="-i 1.0 -s 56"
 HW_PING_PATH="${PWD}/iputils-hw/ping"
 
 PAUSE_CMD="sleep 300"
+# PAUSE_CMD="sleep 10"
+
 
 DATE_TAG=`date +%Y%m%d%H%M%S`
 META_DATA="Metadata"
@@ -45,7 +47,7 @@ hwstamp_ctl -i $HOST_IFACE -t 1 -r 1
 
 
 echo "*** Hardware Timestamp Control ***"
-$HW_PING_PATH $PING_ARGS $TARGET_IPV4 > hw_control_${TARGET_IPV4}.ping &
+$HW_PING_PATH $PING_ARGS $TARGET_IPV4 > hw_control_${TARGET_IPV4}.ping 2>/dev/null &
 PING_PID=$!
 echo "Pinging"
 
