@@ -13,7 +13,7 @@
 
 #define LINUX
 
-#define LOG_EVENTS
+// #define LOG_EVENTS
 
 #include <linux/module.h>
 #include <linux/kernel.h>
