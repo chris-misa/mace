@@ -259,6 +259,8 @@ test_and_set_tracepoint(struct tracepoint *tp, void *priv)
 int __init
 trace_test_init(void)
 {
+  printk("tsc_khz: %d\n", tsc_khz);
+
   probe_tracepoint[0] = NULL;
   probe_tracepoint[1] = NULL;
   probe_tracepoint[2] = NULL;
