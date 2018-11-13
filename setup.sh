@@ -19,6 +19,13 @@ pushd iputils
 make
 popd
 
+# Get and make hwiputils
+git clone https://github.com/chris-misa/iputils.git iputils-hw
+pushd iputils-hw
+git checkout hwtimestamp
+make
+popd
+
 # Set up docker
 apt-get install -y \
   apt-transport-https \

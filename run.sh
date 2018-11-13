@@ -9,6 +9,8 @@
 
 PWD=$(pwd)
 
+HOST_IFACE="eno1d1"
+
 MODULE_NAME="trace_test"
 MODULE_PATH="${PWD}/mod/${MODULE_NAME}.ko"
 DEV_FILE_PATH="${PWD}/mod/temp_out"
@@ -20,7 +22,9 @@ PING_PATH="${PWD}/iputils/ping"
 TARGET_IPV4="10.10.1.2"
 PING_ARGS="-i 1.0 -s 56"
 
-PAUSE_CMD="sleep 10"
+HW_PING_PATH="${PWD}/iputils-hw/ping"
+
+PAUSE_CMD="sleep 300"
 
 DATE_TAG=`date +%Y%m%d%H%M%S`
 META_DATA="Metadata"
@@ -28,6 +32,7 @@ META_DATA="Metadata"
 mkdir $DATE_TAG
 cd $DATE_TAG
 
+echo "*** Taking meta data ***"
 # Get some basic meta-data
 echo "uname -a -> $(uname -a)" >> $META_DATA
 echo "docker -v -> $(docker -v)" >> $META_DATA
@@ -35,6 +40,21 @@ echo "lsb_release -a -> $(lsb_release -a)" >> $META_DATA
 echo "sudo lshw -> $(lshw)" >> $META_DATA
 echo "/proc/cpuinfo -> $(cat /proc/cpuinfo)" >> $META_DATA
 
+echo "*** Setting hardware timestamping ***"
+hwstamp_ctl -i $HOST_IFACE -t 1 -r 1
+
+
+echo "*** Hardware Timestamp Control ***"
+$HW_PING_PATH $PING_ARGS $TARGET_IPV4 > hw_control_${TARGET_IPV4}.ping &
+PING_PID=$!
+echo "Pinging"
+
+$PAUSE_CMD
+
+kill -INT $PING_PID
+echo "Killed ping"
+
+echo "Done."
 
 echo "*** Native Control ***"
 $PING_PATH $PING_ARGS $TARGET_IPV4 > native_control_${TARGET_IPV4}.ping &
