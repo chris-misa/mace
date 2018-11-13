@@ -386,19 +386,22 @@ device_read(struct file *fp, char *buf, size_t len, loff_t *offset)
   // Read in the next line if needed
   if (*msgp == 0) {
 
-    if (head == tail) {
-      // If we're non-blocking, wait for next entry in queue
-      wait_event_interruptible(wait_q, head != tail);
-    }
-
-    if (head == tail) {
-      // Condition still true, must have been a signal
-      return 0;
-    }
-
     if (first_time) {
+      first_time = 0;
       sprintf(msg, "tsc_khz: %d\n", tsc_khz);
+
     } else {
+
+      if (head == tail) {
+        // If we're non-blocking, wait for next entry in queue
+        wait_event_interruptible(wait_q, head != tail);
+      }
+
+      if (head == tail) {
+        // Condition still true, must have been a signal
+        return 0;
+      }
+
       // Form the string, dequeue
       sprintf(msg, "seq: %d, send latency: %llu us recv latency: %llu us\n",
         ring_buffer[tail].seq,
