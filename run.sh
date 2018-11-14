@@ -24,8 +24,8 @@ PING_ARGS="-i 1.0 -s 56"
 
 HW_PING_PATH="${PWD}/iputils-hw/ping"
 
-PAUSE_CMD="sleep 100"
-# PAUSE_CMD="sleep 10"
+# PAUSE_CMD="sleep 100"
+PAUSE_CMD="sleep 10"
 
 
 DATE_TAG=`date +%Y%m%d%H%M%S`

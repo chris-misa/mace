@@ -11,7 +11,7 @@
 
 # Get dependencies for the iputils build
 apt-get update
-apt-get install -y libcap-dev libidn2-0-dev nettle-dev trace-cmd
+apt-get install -y libcap-dev libidn2-0-dev nettle-dev trace-cmd linuxptp
 
 # Get and build iputils
 git clone https://github.com/chris-misa/iputils.git
