@@ -61,4 +61,15 @@ Correlation should be automatic to the system using `skb_addr` or other skb attr
 
 The question is how to compile filtering and correlation check so as to attain the highest level of efficiency. . .
 
+User-space kernel-space aspect: the params available at the sendto / recvmsg
+tracepoints are all in userspace, while the params available at the
+device layer are all in kernel space.
+
+
+Maybe get a reference to the socket struct using
+```
+struct socket *sock = sockfd_lookup_light(fd, &err, &fput_needed);
+```
+Where fd is the file descripter relative to the calling process
+(i.e. the first argument to sendto()).
 
