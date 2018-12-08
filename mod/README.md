@@ -9,17 +9,23 @@ Active Measurement Protocol Generalization:
 2) wait for packets to return
 3) repeat
 
+Standard events:
+`sendto / recvmsg` system calls in userspace.
+`net_dev_xmit / netif_recv_skb` events on target device in kernel space.
+
+
+Need consistent representation of 1) userspace measurement process (pid? pgroup? masks? namespaces?) 2) if devices (device name? device id? namespace?)
+For this initial version let's just do things simple: user space by proc id, device by device id.  Any later specifications schemes should be able to map
+specific specifications into theses two, well-defined parameter spaces.
+
 General report is a stream of either send or receive latencies as filtered
 by the given flow specification.
-
-Flow specification fields:
-
 
 
 ### Grammar
 
 ```
-<Protocol Filter> ::= in:<Flow Spec> out:<Flow Spec>
+<Protocol Filter> ::= dev-id: <Num> proc-id: <Num> in:<Flow Spec> out:<Flow Spec>
 
 <Flow Spec> ::= corr:<Fields> info:<Fields>
 
@@ -32,6 +38,29 @@ Flow specification fields:
 <L4 Fields> ::= (tcp_seq | icmp_seq | icmp_id)+
 
 ```
+
+In English, a Protocol Filter contains four items:
+  (dev-id) the device id of the outer (physical) device in the requested device path;
+  (proc-id) the process, as seen from the root namespace, of the measurement process;
+  (in) a flow specification for inbound events
+  (out) a flow specification for outbound events
+
+Flow specifications contain two items:
+  (corr) a list of fields which should be used to correlate events between userspace and the device layer;
+  (info) a list of fields which should be reported with in / out latencies in to general output for this protocol specification.
+
+While the info field list may be empty (in which case only latencies are reported) the corr fields must be carefully chosen to prevent
+over sampling of events on the path. Probably we will need some safety catches to prevent requests from slowing down traffic on the host
+by requesting overtly general correlations, which when combined with exhaustive info reporting might have significant performance impact.
+
+
+
+
+
+
+
+
+
 
 
 
