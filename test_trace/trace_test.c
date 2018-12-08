@@ -174,6 +174,14 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
   }
 }
 
+// regs <-> arg mapping (assuming x86_64, i.e. #define CONFIG_X86_64)
+//           . . . also recorded the fields for sendto syscall
+// di  : 0 (socket) int
+// si  : 1 (message) char * (in userspace?)
+// dx  : 2 (message len) size_t
+// r10 : 3 (flags) int
+// r8  : 4 (dest_addr) struct sockaddr *
+// r9  : 5 (dest_len) socklen_t
 void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
@@ -187,6 +195,15 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 #ifdef LOG_EVENTS
     printk("[%llu] sendto\n", send_time);
 #endif
+    printk("[%llu] sendto(%lu, %lu, %lu, %lu, %lu, %lu)\n",
+      send_time,
+      regs->di,
+      regs->si,
+      regs->dx,
+      regs->r10,
+      regs->r8,
+      regs->r9);
+
   }
 }
 
