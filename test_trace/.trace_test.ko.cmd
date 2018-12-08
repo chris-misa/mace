@@ -1,1 +1,0 @@
-cmd_/home/mace/mod/trace_test.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000 -T ./scripts/module-common.lds  --build-id  -o /home/mace/mod/trace_test.ko /home/mace/mod/trace_test.o /home/mace/mod/trace_test.mod.o ;  true
