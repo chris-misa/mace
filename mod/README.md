@@ -15,27 +15,30 @@ Standard events:
 
 
 Need consistent representation of 1) userspace measurement process (pid? pgroup? masks? namespaces?) 2) if devices (device name? device id? namespace?)
+
 For this initial version let's just do things simple: user space by proc id, device by device id.  Any later specifications schemes should be able to map
 specific specifications into theses two, well-defined parameter spaces.
 
 General report is a stream of either send or receive latencies as filtered
-by the given flow specification.
+by the given flow specification. Again, leaving grouping of send / recv events into RTTs to later developments.
 
 
 ### Grammar
 
 ```
-<Protocol Filter> ::= dev-id: <Num> proc-id: <Num> in:<Flow Spec> out:<Flow Spec>
+<Protocol Filter> ::= dev-id:<Num> proc-id:<Num> in:<Flow Spec> out:<Flow Spec>
 
-<Flow Spec> ::= corr:<Fields> info:<Fields>
+<Flow Spec> ::= flow:<Fields> info:<Fields>
 
 <Fields> ::= [<L2 Fields>] [<L3 Fields>] [<L4 Fields>]
 
-<L2 Fields> ::= (eth_src_addr | eth_dst_addr | eth_proto)+
+<L2 Fields> ::= (eth_src_addr:<Data> | eth_dst_addr:<Data> | eth_proto:<Data>)+
 
-<L3 Fields> ::= (ip_src_addr | ip_dst_addr | ip_prot0)+
+<L3 Fields> ::= (ip_src_addr:<Data> | ip_dst_addr:<Data> | ip_proto:<Data>)+
 
-<L4 Fields> ::= (tcp_seq | icmp_seq | icmp_id)+
+<L4 Fields> ::= (tcp_seq:<Data> | icmp_seq:<Data> | icmp_id:<Data>)+
+
+<Data> ::= (Some number of bytes depending on what this is data for....)
 
 ```
 
@@ -46,31 +49,16 @@ In English, a Protocol Filter contains four items:
   (out) a flow specification for outbound events
 
 Flow specifications contain two items:
-  (corr) a list of fields which should be used to correlate events between userspace and the device layer;
+  (flow) a list of fields which should be used to filter events into the desired flow;
   (info) a list of fields which should be reported with in / out latencies in to general output for this protocol specification.
-
-While the info field list may be empty (in which case only latencies are reported) the corr fields must be carefully chosen to prevent
-over sampling of events on the path. Probably we will need some safety catches to prevent requests from slowing down traffic on the host
-by requesting overtly general correlations, which when combined with exhaustive info reporting might have significant performance impact.
-
-
-
-
-
-
-
-
-
-
-
 
 
 ## Design
 
+Flow filteration and correlation. A given installed flow filter might allow some events to be discarded before correlation checks.
 
-The protocol specs on events can be a little complex.
-What goes in the queue should remain small, simple and standardized:
+Correlation should be automatic to the system using `skb_addr` or other skb attributes readable at all layers.
 
-timestamp, packet id (formed some how from all flow filter fields?)
+The question is how to compile filtering and correlation check so as to attain the highest level of efficiency. . .
 
 
