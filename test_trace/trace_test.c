@@ -185,6 +185,7 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
+  struct icmphdr *icp;
   // Catch outgoing packets leaving userspace from target pid
   if (id == SYSCALL_SENDTO
    && current->pid == inner_pid) {
@@ -192,10 +193,10 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
     send_time = rdtsc();
     expect_send = 1;
 
+
+
 #ifdef LOG_EVENTS
-    printk("[%llu] sendto\n", send_time);
-#endif
-    printk("[%llu] sendto(%lu, %lu, %lu, %lu, %lu, %lu)\n",
+    printk("[%llu] sendto(%lu, %lx, %lu, %lu, %lx, %lu)\n",
       send_time,
       regs->di,
       regs->si,
@@ -204,6 +205,9 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
       regs->r8,
       regs->r9);
 
+    icp = (struct icmphdr *)regs->si;
+    printk("icmphdr seq: %d\n", be16_to_cpu(icp->un.echo.sequence));
+#endif
   }
 }
 
