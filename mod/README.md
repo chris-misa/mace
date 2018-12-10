@@ -9,6 +9,9 @@ Active Measurement Protocol Generalization:
 2) wait for packets to return
 3) repeat
 
+Assume measurement code is a single thread, the kernel might be multithreaded, and the irq hits the same receive thread.
+Assume no UDP corking?
+
 Standard events:
 `sendto / recvmsg` system calls in userspace.
 `net_dev_xmit / netif_recv_skb` events on target device in kernel space.
@@ -61,30 +64,11 @@ Correlation should be automatic to the system using 'skb_addr' or other skb attr
 
 The question is how to compile filtering and correlation check so as to attain the highest level of efficiency. . .
 
-User-space kernel-space aspect: the params available at the sendto / recvmsg
-tracepoints are all in userspace, while the params available at the
-device layer are all in kernel space.
-
-(Wrong Idea Warning. . .)
-Maybe get a reference to the socket struct using
-```
-struct socket *sock = sockfd_lookup_light(fd, &err, &fput_needed);
-```
-Where fd is the file descripter relative to the calling process
-(i.e. the first argument to sendto()).
-
-https://github.com/torvalds/linux/blob/master/include/linux/net.h  (for definition of struct socket)
-https://github.com/torvalds/linux/blob/master/include/net/sock.h (for definition of struct sock)
-
-which can then be correlated with the sk_buff->sk field?
-(End Wrong Idea)
-
 The problem is that we need to do correlation on a packet by packet basis. The above groups events nicely into flows but will not guarantee packet-level corelation.
 
-
 We can always fall back on using packet length?
-Check return value of the sendto syscall to filter for only sendto returning successfully?
 
 Find a trace point after the syscal but before any routing or reorder could take place. In the protocol maybe?
+Maybe use skb:skb_copy_datagram_iovec which should give the skb address for the subsequent net_dev_xmit.
 
 
