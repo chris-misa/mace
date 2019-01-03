@@ -1,5 +1,7 @@
 Implementation:
 
+Filter on pid and outer device for now.
+
 ping event record struct:
   `egress_rx_ts`
   `egress_tx_ts`
@@ -7,7 +9,6 @@ ping event record struct:
   `ingress_rx_ts`
   `ingress_tx_ts`
   `ingress_dt`
-  `pid`
   `seq`
 
 Lemma:
@@ -30,3 +31,15 @@ pointers into block:
   `read_head`       // next entry to read out into userspace
 
 
+# Notes
+
+regs <-> arg mapping for sendto syscall:
+```
+(assuming x86_64, i.e. #define CONFIG_X86_64)
+di  : 0 (socket) int
+si  : 1 (message) char * (in userspace?)
+dx  : 2 (message len) size_t
+r10 : 3 (flags) int
+r8  : 4 (dest_addr) struct sockaddr *
+r9  : 5 (dest_len) socklen_t
+```
