@@ -45,22 +45,26 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
-MODULE_DESCRIPTION("Probing tracepoints to monitor network stack latency");
+MODULE_DESCRIPTION("Probing tracepoints to monitor network stack latency of ICMP ping packets.");
 
+//
 // Param: outer_dev
+//
 static int outer_dev = -1;
 module_param(outer_dev, int, 0);
 MODULE_PARM_DESC(outer_dev, "Device id of the outer device");
 
+//
 // Param: inner_pid
+//
 static int inner_pid = -1;
 module_param(inner_pid, int, 0);
 MODULE_PARM_DESC(inner_pid, "PID of the inner userspace process");
 
-static struct tracepoint *probe_tracepoint[4];
 
 static int first_time = 1;
 
+/*
 static int expect_send = 0;
 static int expect_recv = 0;
 static int ping_on_wire = 0;
@@ -79,12 +83,55 @@ static unsigned long head;
 static unsigned long tail;
 
 static struct rtt_lats cur_lat;
+*/
 
-DECLARE_WAIT_QUEUE_HEAD(wait_q);
 
 //
-// device file handling
+// Module life-cycle functions
 //
+int __init mace_ping_init(void);
+void __exit mace_ping_exit(void);
+
+module_init(mace_ping_init);
+module_exit(mace_ping_exit);
+
+//
+// Ping event queue
+//
+struct ping_event {
+  unsigned long long egress_rx_ts;
+  unsigned long long egress_tx_ts;
+  unsigned long long egress_dt;
+  unsigned long long ingress_rx_ts;
+  unsigned long long ingress_tx_ts;
+  unsigned long long ingress_dt;
+  unsigned long seq;
+};
+
+static struct ping_event *ping_event_queue;
+
+static unsigned long egress_rx_head;
+static unsigned long egress_tx_head;
+static unsigned long ingress_rx_head;
+static unsigned long ingress_tx_head;
+static unsigned long read_head;
+
+//
+// Tracepoint functions
+//
+static struct tracepoint *probe_tracepoint[4] = { NULL, NULL, NULL, NULL };
+void test_and_set_tracepoint(struct tracepoint *tp, void *priv);
+
+void probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device *dev, unsigned int len);
+void probe_netif_receive_skb(void *unused, struct sk_buff *skb);
+void probe_sys_enter(void *unused, struct pt_regs *regs, long id);
+void probe_sys_exit(void *unused, struct pt_regs *regs, long ret);
+
+
+//
+// Output device file handling
+//
+DECLARE_WAIT_QUEUE_HEAD(read_wait_q);
 static int dev_is_open = 0;
 static int Major;
 static char *msg;
@@ -101,6 +148,137 @@ static struct file_operations fops = {
   .open = device_open,
   .release = device_release
 };
+
+
+int __init
+mace_ping_init(void)
+{
+  printk("tsc_khz: %d\n", tsc_khz);
+
+  if (outer_dev < 0) {
+    printk(KERN_ALERT "Must set outer_dev=<valid device id>\n");
+    return -1;
+  }
+
+  if (inner_pid < 0) {
+    printk(KERN_ALERT "Must set inner_pid=<valid pid>\n");
+    return -1;
+  }
+
+  // Get memory for ping event queue
+  ping_event_queue = kmalloc(sizeof(struct ping_event) * BUF_SIZE, GFP_KERNEL);
+  if (ping_event_queue == NULL) {
+    printk(KERN_ALERT "Failed to alloc memory.\n");
+    return -ENOMEM;
+  }
+  egress_rx_head = 0;
+  egress_tx_head = 0;
+  ingress_rx_head = 0;
+  ingress_tx_head = 0;
+  read_head = 0;
+
+  // Get memory for device file read buffer
+  msg = kmalloc(sizeof(char) * MSG_SIZE, GFP_KERNEL);
+  if (msg == NULL) {
+    kfree(ring_buffer);
+    printk(KERN_ALERT "Failed to alloc memory.\n");
+    return -ENOMEM;
+  }
+
+  // Set up device file
+  Major = register_chrdev(0, DEVICE_NAME, &fops);
+  if (Major < 0) {
+    kfree(ring_buffer);
+    kfree(msg);
+    printk(KERN_ALERT "Registering chardev failed with %d\n", Major);
+    return Major;
+  }
+  printk("mace_test assigned major number %d\n", Major);
+  printk("use \"mknod <path to new device file> c %d 0\"\n", Major);
+
+	// Find the tracepoints and set probe functions
+	for_each_kernel_tracepoint(test_and_set_tracepoint, NULL);
+
+	return 0;
+}
+
+void __exit
+mace_ping_exit(void)
+{
+  // Unregister probe functions
+	if (probe_tracepoint[0]) {
+		if (tracepoint_probe_unregister(probe_tracepoint[0], probe_net_dev_xmit, NULL) != 0) {
+			printk(KERN_ALERT "Failed to unregister net_dev_xmit traceprobe.\n");
+		}
+	}
+	if (probe_tracepoint[1]) {
+		if (tracepoint_probe_unregister(probe_tracepoint[1], probe_sys_enter, NULL) != 0) {
+			printk(KERN_ALERT "Failed to unregister sys_enter traceprobe.\n");
+		}
+	}
+  if (probe_tracepoint[2]) {
+    if (tracepoint_probe_unregister(probe_tracepoint[2], probe_netif_receive_skb, NULL) != 0) {
+      printk(KERN_ALERT "Failed to unregister netif_receive_skb traceprobe.\n");
+    }
+  }
+  if (probe_tracepoint[3]) {
+    if (tracepoint_probe_unregister(probe_tracepoint[3], probe_sys_exit, NULL) != 0) {
+      printk(KERN_ALERT "Failed to unregister sys_exit traceprobe.\n");
+    }
+  }
+	printk("Removed trace probes.\n");
+
+  // Free ping event queue
+  if (ping_event_queue) {
+    kfree(ping_event_queue);
+  }
+
+  // Free device file buffer
+  if (msg) {
+    kfree(msg);
+  }
+  printk("Freed memory.\n");
+
+  // Remove the device file
+  unregister_chrdev(Major, DEVICE_NAME);
+  printk("Removed device file.\n");
+}
+
+//
+// Get egress receive timestamp 
+// Sets seq in a new ping_event
+//
+void
+probe_sys_enter(void *unused, struct pt_regs *regs, long id)
+{
+  struct icmphdr *icp;
+
+  // Filter sendto syscalls from the target process
+  if (id == SYSCALL_SENDTO
+   && current->pid == inner_pid) {
+
+    // Read tsc and seq into ping event
+    ping_event_queue[egress_rx_head].egress_rx_ts = rdtsc();
+
+    icp = (struct icmphdr *)regs->si;
+    ping_event_queue[egress_rx_head].seq = be16_to_cpu(icp->un.echo.sequence);
+
+    // Advance egress receive head
+    egress_rx_head = (egress_rx_head + 1) % BUF_SIZE;
+
+#ifdef LOG_EVENTS
+    printk("[%llu] sendto(%lu, %lx, %lu, %lu, %lx, %lu)\n",
+      send_time,
+      regs->di,
+      regs->si,
+      regs->dx,
+      regs->r10,
+      regs->r8,
+      regs->r9);
+    printk("icmphdr seq: %d\n", be16_to_cpu(icp->un.echo.sequence));
+#endif
+  }
+}
 
 void
 probe_net_dev_xmit(void *unused, struct sk_buff *skb, int rc, struct net_device *dev, unsigned int len)
@@ -174,42 +352,6 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
   }
 }
 
-// regs <-> arg mapping (assuming x86_64, i.e. #define CONFIG_X86_64)
-//           . . . also recorded the fields for sendto syscall
-// di  : 0 (socket) int
-// si  : 1 (message) char * (in userspace?)
-// dx  : 2 (message len) size_t
-// r10 : 3 (flags) int
-// r8  : 4 (dest_addr) struct sockaddr *
-// r9  : 5 (dest_len) socklen_t
-void
-probe_sys_enter(void *unused, struct pt_regs *regs, long id)
-{
-  struct icmphdr *icp;
-  // Catch outgoing packets leaving userspace from target pid
-  if (id == SYSCALL_SENDTO
-   && current->pid == inner_pid) {
-
-    send_time = rdtsc();
-    expect_send = 1;
-
-
-
-#ifdef LOG_EVENTS
-    printk("[%llu] sendto(%lu, %lx, %lu, %lu, %lx, %lu)\n",
-      send_time,
-      regs->di,
-      regs->si,
-      regs->dx,
-      regs->r10,
-      regs->r8,
-      regs->r9);
-
-    icp = (struct icmphdr *)regs->si;
-    printk("icmphdr seq: %d\n", be16_to_cpu(icp->un.echo.sequence));
-#endif
-  }
-}
 
 void
 probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
@@ -236,7 +378,7 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       head = (head + 1) % BUF_SIZE;
 
       // Wake up any waiting readers
-      wake_up(&wait_q);
+      wake_up(&read_wait_q);
 
 #ifdef LOG_EVENTS
       printk("[%llu] recv delta time: %llu\n", cur_time, delta_time);
@@ -279,101 +421,6 @@ test_and_set_tracepoint(struct tracepoint *tp, void *priv)
   }
 }
 
-int __init
-trace_test_init(void)
-{
-  printk("tsc_khz: %d\n", tsc_khz);
-
-  probe_tracepoint[0] = NULL;
-  probe_tracepoint[1] = NULL;
-  probe_tracepoint[2] = NULL;
-  probe_tracepoint[3] = NULL;
-
-  if (outer_dev < 0) {
-    printk(KERN_ALERT "Must set outer_dev=<valid device id>\n");
-    return -1;
-  }
-
-  if (inner_pid < 0) {
-    printk(KERN_ALERT "Must set inner_pid=<valid pid>\n");
-    return -1;
-  }
-
-  // Get memory for buffers
-  ring_buffer = kmalloc(sizeof(struct rtt_lats) * BUF_SIZE, GFP_KERNEL);
-  if (ring_buffer == NULL) {
-    printk(KERN_ALERT "Failed to alloc memory.\n");
-    return -ENOMEM;
-  }
-  head = tail = 0;
-
-  msg = kmalloc(sizeof(char) * MSG_SIZE, GFP_KERNEL);
-  if (msg == NULL) {
-    kfree(ring_buffer);
-    printk(KERN_ALERT "Failed to alloc memory.\n");
-    return -ENOMEM;
-  }
-
-  // Set up device file
-  Major = register_chrdev(0, DEVICE_NAME, &fops);
-  if (Major < 0) {
-    kfree(ring_buffer);
-    kfree(msg);
-    printk(KERN_ALERT "Registering chardev failed with %d\n", Major);
-    return Major;
-  }
-  printk("mace_test assigned major number %d\n", Major);
-  printk("use \"mknod <path to new device file> c %d 0\"\n", Major);
-
-	// Find the tracepoint and set probe function
-	for_each_kernel_tracepoint(test_and_set_tracepoint, NULL);
-
-	return 0;
-}
-
-void __exit
-trace_test_exit(void)
-{
-	if (probe_tracepoint[0]) {
-		if (tracepoint_probe_unregister(probe_tracepoint[0], probe_net_dev_xmit, NULL) != 0) {
-			printk(KERN_ALERT "Failed to unregister net_dev_xmit traceprobe.\n");
-		}
-	}
-	if (probe_tracepoint[1]) {
-		if (tracepoint_probe_unregister(probe_tracepoint[1], probe_sys_enter, NULL) != 0) {
-			printk(KERN_ALERT "Failed to unregister sys_enter traceprobe.\n");
-		}
-	}
-  if (probe_tracepoint[2]) {
-    if (tracepoint_probe_unregister(probe_tracepoint[2], probe_netif_receive_skb, NULL) != 0) {
-      printk(KERN_ALERT "Failed to unregister netif_receive_skb traceprobe.\n");
-    }
-  }
-  if (probe_tracepoint[3]) {
-    if (tracepoint_probe_unregister(probe_tracepoint[3], probe_sys_exit, NULL) != 0) {
-      printk(KERN_ALERT "Failed to unregister sys_exit traceprobe.\n");
-    }
-  }
-
-
-	printk("Removed trace probes.\n");
-  if (ring_buffer) {
-    kfree(ring_buffer);
-  }
-  if (msg) {
-    kfree(msg);
-  }
-  printk("Freed memory.\n");
-
-  // Remove the device file
-  unregister_chrdev(Major, DEVICE_NAME);
-  printk("Removed device file.\n");
-  
-}
-
-module_init(trace_test_init);
-module_exit(trace_test_exit);
-
 
 static int
 device_open(struct inode *inode, struct file *fp)
@@ -415,7 +462,7 @@ device_read(struct file *fp, char *buf, size_t len, loff_t *offset)
 
       if (head == tail) {
         // If we're non-blocking, wait for next entry in queue
-        wait_event_interruptible(wait_q, head != tail);
+        wait_event_interruptible(read_wait_q, head != tail);
       }
 
       if (head == tail) {

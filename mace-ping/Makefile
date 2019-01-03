@@ -1,4 +1,4 @@
-obj-m += trace_test.o
+obj-m += mace-ping.o
 
 release := $(shell uname -r)
 
