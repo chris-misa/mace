@@ -37,7 +37,7 @@ static ssize_t foo_show(struct kobject *kobj,
     if (offset > PAGE_SIZE) {
       break;
     }
-    offset += sprintf(buf, "%s\n", device->name);
+    offset += sprintf(buf + offset, "%s\n", device->name);
   }
 
   return offset;
