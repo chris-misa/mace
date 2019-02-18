@@ -1,7 +1,7 @@
 //
 // Test of sysfs userspace interface
 //
-// From: pradheepshrinivasan.github.io/2015/07/02/Creating-an-simple-sysfs
+// Adapted from: pradheepshrinivasan.github.io/2015/07/02/Creating-an-simple-sysfs
 //
 
 #define LINUX
@@ -13,6 +13,9 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/string.h>
+
+#include <linux/netdevice.h>
+#include <linux/net_namespace.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
@@ -26,7 +29,18 @@ static ssize_t foo_show(struct kobject *kobj,
                         struct kobj_attribute *attr,
                         char *buf)
 {
-  return sprintf(buf, "%d\n", foo);
+  ssize_t offset = 0;
+  struct net *cur_netns = current->nsproxy->net_ns;
+  struct net_device *device;
+
+  list_for_each_entry(device, &cur_netns->dev_base_head, dev_list) {
+    if (offset > PAGE_SIZE) {
+      break;
+    }
+    offset += sprintf(buf, "%s\n", device->name);
+  }
+
+  return offset;
 }
 
 static ssize_t foo_store(struct kobject *kobj,
