@@ -66,6 +66,9 @@ static struct tracepoint *net_dev_start_xmit_tracepoint;
 DEFINE_PER_CPU(unsigned long long, sys_enter_time);
 DEFINE_PER_CPU(unsigned char, sys_entered);
 
+//
+// Take timestamp and set sys_entered flag on sendto syscall
+//
 void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
@@ -75,6 +78,9 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
   }
 }
 
+//
+// Connect sys_enter's timestamp with kernel's sk_buff address
+//
 void
 probe_net_dev_queue(void *unused, struct sk_buff *skb)
 {
@@ -92,6 +98,12 @@ probe_net_dev_queue(void *unused, struct sk_buff *skb)
   }
 }
 
+//
+// Report latency if a matching sk_buff was previously timestamped.
+//
+// Another idea would be to watch both start_xmit and xmit and pick an egress time
+// between the two to account for driver latency.
+//
 void
 probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *dev)
 {
@@ -111,6 +123,9 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
   }
 }
 
+//
+// Identify target tracepoints by name
+//
 void
 test_and_set_traceprobe(struct tracepoint *tp, void *unused)
 {
@@ -136,12 +151,18 @@ test_and_set_traceprobe(struct tracepoint *tp, void *unused)
   }
 }
 
+//
+// Initialize per-cpu flags
+//
 void
 init_per_cpu_variables(void *unused)
 {
   this_cpu_write(sys_entered, 0);
 }
 
+//
+// Module initialization
+//
 int __init
 mace_mod_init(void)
 {
@@ -163,6 +184,9 @@ mace_mod_init(void)
   return 0;
 }
 
+//
+// Module clean up
+//
 void __exit
 mace_mod_exit(void)
 {
