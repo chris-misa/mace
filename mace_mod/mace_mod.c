@@ -69,21 +69,16 @@ DEFINE_PER_CPU(unsigned char, sys_entered);
 void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
-  int sockfd = regs->di;
-  struct files_struct *cur_files = current->files;
-  struct fdtable *files_table = files_fdtable(cur_files);
+  int sockfd;
 
-  if (files_table->fd[sockfd]) {
-    printk("Mace: sys_enter socket fd %d is at %p\n",
-        sockfd,
-        files_table->fd[sockfd]->private_data);
-  } else {
-    printk("Mace: sys_enter socket fd %d is null\n",
-        sockfd);
+  if (id == SYSCALL_SENDTO) {
+
+    sockfd = regs->di;
+    printk("Mace: sys_enter socket fd %d\n", sockfd);
+
+    this_cpu_write(sys_enter_time, rdtsc());
+    this_cpu_write(sys_entered, 1);
   }
-
-  this_cpu_write(sys_enter_time, rdtsc());
-  this_cpu_write(sys_entered, 1);
 }
 
 void
