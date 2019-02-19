@@ -31,6 +31,9 @@
 
 #include <asm/syscall.h>
 
+#include <linux/sched.h>
+#include <linux/fdtable.h>
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
 MODULE_DESCRIPTION("Test of sysfs file system");
@@ -66,6 +69,19 @@ DEFINE_PER_CPU(unsigned char, sys_entered);
 void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
+  int sockfd = regs->di;
+  struct files_struct *cur_files = current->files;
+  struct fdtable *files_table = files_fdtable(cur_files);
+
+  if (files_table->fd[sockfd]) {
+    printk("Mace: sys_enter socket fd %d is at %p\n",
+        sockfd,
+        files_table->fd[sockfd]->private_data);
+  } else {
+    printk("Mace: sys_enter socket fd %d is null\n",
+        sockfd);
+  }
+
   this_cpu_write(sys_enter_time, rdtsc());
   this_cpu_write(sys_entered, 1);
 }
@@ -81,9 +97,11 @@ probe_net_dev_queue(void *unused, struct sk_buff *skb)
     // Start new active latency, over-writing anything
     // which might have hashed into the same slot.
     ml = active_latencies + mace_hash(skb);
-    ml->enter = rdtsc();
+    ml->enter = this_cpu_read(sys_enter_time);
     ml->skb = skb;
     ml->valid = 1;
+
+    printk(KERN_INFO "Mace: net_dev_queue: skb->sk is %p\n", skb->sk);
   }
 }
 
@@ -128,7 +146,7 @@ test_and_set_traceprobe(struct tracepoint *tp, void *unused)
   }
   
   if (found && ret != 0) {
-    printk(KERN_WARNING "Failed to set tracepoint.\n");
+    printk(KERN_WARNING "Mace: Failed to set tracepoint.\n");
   }
 }
 
@@ -154,7 +172,7 @@ mace_mod_init(void)
 
   for_each_kernel_tracepoint(test_and_set_traceprobe, NULL);
 
-  printk(KERN_INFO "Mace running.\n");
+  printk(KERN_INFO "Mace: running.\n");
 
   return 0;
 }
@@ -164,17 +182,17 @@ mace_mod_exit(void)
 {
   if (sys_enter_tracepoint
       && tracepoint_probe_unregister(sys_enter_tracepoint, probe_sys_enter, NULL)) {
-    printk(KERN_WARNING "Failed to unregister sys_enter traceprobe.\n");
+    printk(KERN_WARNING "Mace: Failed to unregister sys_enter traceprobe.\n");
   }
   if (net_dev_queue_tracepoint
       && tracepoint_probe_unregister(net_dev_queue_tracepoint, probe_net_dev_queue, NULL)) {
-    printk(KERN_WARNING "Failed to unregister net_dev_queue traceprobe.\n");
+    printk(KERN_WARNING "Mace: Failed to unregister net_dev_queue traceprobe.\n");
   }
   if (net_dev_start_xmit_tracepoint
       && tracepoint_probe_unregister(net_dev_start_xmit_tracepoint, probe_net_dev_start_xmit, NULL)) {
-    printk(KERN_WARNING "Failed to unregister net_dev_start_xmit traceprobe.\n");
+    printk(KERN_WARNING "Mace: Failed to unregister net_dev_start_xmit traceprobe.\n");
   }
-  printk(KERN_INFO "Mace stopped.\n");
+  printk(KERN_INFO "Mace: stopped.\n");
 }
 
 module_init(mace_mod_init);
