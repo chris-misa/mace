@@ -69,13 +69,7 @@ DEFINE_PER_CPU(unsigned char, sys_entered);
 void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
-  int sockfd;
-
   if (id == SYSCALL_SENDTO) {
-
-    sockfd = regs->di;
-    printk("Mace: sys_enter socket fd %d\n", sockfd);
-
     this_cpu_write(sys_enter_time, rdtsc());
     this_cpu_write(sys_entered, 1);
   }
@@ -86,7 +80,7 @@ probe_net_dev_queue(void *unused, struct sk_buff *skb)
 {
   struct mace_latency *ml;
 
-  if (likely(this_cpu_read(sys_entered))) {
+  if (this_cpu_read(sys_entered)) {
     this_cpu_write(sys_entered, 0);
 
     // Start new active latency, over-writing anything
@@ -95,8 +89,6 @@ probe_net_dev_queue(void *unused, struct sk_buff *skb)
     ml->enter = this_cpu_read(sys_enter_time);
     ml->skb = skb;
     ml->valid = 1;
-
-    printk(KERN_INFO "Mace: net_dev_queue: skb->sk is %p\n", skb->sk);
   }
 }
 
@@ -116,7 +108,6 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
       ml->valid = 0;
       printk(KERN_INFO "Mace: latency of %lld cycles.\n", dt);
     }
-
   }
 }
 
