@@ -53,6 +53,12 @@ MODULE_PARM_DESC(inner_dev, "Device id of inner devie");
 
 #define MACE_LATENCIES_SIZE 128
 
+// Bitmaps to keep track of which device ids to listen on
+#define mace_in_set(id, set) ((1 << (id)) & (set))
+#define mace_add_set(id, set) (set) |= 1 << (id)
+unsigned long inner_devs = 0;
+unsigned long outer_devs = 0;
+
 // Simple statically allocated hash table
 #define mace_hash(key) ((unsigned long long)(key) % MACE_LATENCIES_SIZE)
 struct mace_latency {
@@ -88,15 +94,18 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 }
 
 //
-// Connect sys_enter's timestamp with kernel's sk_buff address
+// If queuing to an entry dev,
+// connect sys_enter's timestamp with kernel's sk_buff address.
+// Reset sys_entered flag either way.
 //
 void
 probe_net_dev_queue(void *unused, struct sk_buff *skb)
 {
   struct mace_latency *ml;
 
-  if (this_cpu_read(sys_entered)) {
-    this_cpu_write(sys_entered, 0);
+  if (skb->dev
+        && mace_in_set(skb->dev->ifindex, inner_devs)
+        && this_cpu_read(sys_entered)) {
 
     // Start new active latency, over-writing anything
     // which might have hashed into the same slot.
@@ -105,6 +114,9 @@ probe_net_dev_queue(void *unused, struct sk_buff *skb)
     ml->skb = skb;
     ml->valid = 1;
   }
+
+  // Always clear this flag assuming syncronous sendtos
+  this_cpu_write(sys_entered, 0);
 }
 
 //
@@ -119,8 +131,8 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
   struct mace_latency *ml;
   unsigned long long dt;
   
-  // Filter for outer device
-  if (dev->ifindex == outer_dev) {
+  // Filter for outer devices
+  if (mace_in_set(dev->ifindex, outer_devs)) {
 
     // Look for active latency for this skb
     ml = egress_latencies + mace_hash(skb);
@@ -140,7 +152,7 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
   struct mace_latency *ml;
 
   // Filter for outer device
-  if (skb->dev && skb->dev->ifindex == outer_dev) {
+  if (skb->dev && mace_in_set(skb->dev->ifindex, outer_devs)) {
     
     // Store this arrival time in table
     ml = ingress_latencies + mace_hash(skb);
@@ -157,7 +169,7 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
   unsigned long long dt;
 
   // Filter for inner device
-  if (skb->dev && skb->dev->ifindex == inner_dev) {
+  if (skb->dev && mace_in_set(skb->dev->ifindex, inner_devs)) {
 
     // Look for active latency for this skb
     ml = ingress_latencies + mace_hash(skb);
@@ -250,6 +262,9 @@ mace_mod_init(void)
   if (ret) {
     return ret;
   }
+
+  mace_add_set(outer_dev, outer_devs);
+  mace_add_set(inner_dev, inner_devs);
 
   // Set up
   on_each_cpu(init_per_cpu_variables, NULL, 1);
