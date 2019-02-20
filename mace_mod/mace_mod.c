@@ -168,6 +168,8 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 {
   struct mace_latency *ml;
   unsigned long long dt;
+  struct iphdr *ip;
+  struct icmphdr *icmp;
 
   // Filter for inner device
   if (skb->dev && mace_in_set(skb->dev->ifindex, inner_devs)) {
@@ -180,6 +182,14 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 
       // Report egress latency
       printk(KERN_INFO "Mace: ingress latency of %lld cycles.\n", dt);
+
+      // For example get icmp echo sequence to corrolate to syscall layer
+      // NOTE: This doesn't actually work yet, probably due to misalignment.
+      ip = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
+      icmp = (struct icmphdr *)(skb->data + ip->ihl * 4
+              + sizeof(struct ethhdr));
+      printk(KERN_INFO "Mace: netif_receive_skb echo seq: %d\n",
+        be16_to_cpu(icmp->un.echo.sequence));
     }
   }
 }
@@ -188,16 +198,19 @@ void
 probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
   struct user_msghdr *msg;
-  struct icmphdr *icp;
+  struct iphdr *ip;
+  struct icmphdr *icmp;
 
   if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
     msg = (struct user_msghdr *)regs->si;
     if (msg) {
-      icp = msg->msg_iov->iov_base;
-      if (icp) {
-        printk("Mace: exiting system for icmp seq %d\n",
-            be16_to_cpu(icp->un.echo.sequence));
-      }
+      // Raw socker gives us the ip header
+      // For example we get icmp echo sequence
+      ip = (struct iphdr *)msg->msg_iov->iov_base;
+      icmp = (struct icmphdr *)(msg->msg_iov->iov_base + ip->ihl * 4);
+      printk("Mace: icmp seq: %d\n",
+        be16_to_cpu(icmp->un.echo.sequence));
+
     }
   }
 }
