@@ -17,6 +17,7 @@
 #include <linux/tracepoint.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/socket.h>
 #include <asm/msr.h>
 
 
@@ -186,6 +187,19 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 void
 probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
+  struct user_msghdr *msg;
+  struct icmphdr *icp;
+
+  if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
+    msg = (struct user_msghdr *)regs->si;
+    if (msg) {
+      icp = msg->msg_iov->iov_base;
+      if (icp) {
+        printk("Mace: exiting system for icmp seq %d\n",
+            be16_to_cpu(icp->un.echo.sequence));
+      }
+    }
+  }
 }
 
 //
