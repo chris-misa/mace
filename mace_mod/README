@@ -1,0 +1,23 @@
+Egress correlation problem using per-cpu solution
+
+Ingress is trickier:
+
+Perhaps we can learn from mace-ping: trace-probes can infact get at the content of the packet:
+
+  From looking at do_syscall_64() regs should remain unchanged through to trace_sys_exit so let's use them!
+
+  
+regs <-> arg mapping (assuming x86_64, i.e. #define CONFIG_X86_64)
+          . . . also recorded the fields for sendto syscall
+
+di  : 0 (socket) int
+si  : 1 (message) char * (in userspace?)
+dx  : 2 (message len) size_t
+r10 : 3 (flags) int
+r8  : 4 (dest_addr) struct sockaddr *
+r9  : 5 (dest_len) socklen_t
+
+  For recvmsg `si` should be pointer to struct msghdr.
+
+  Then do some checksum on packet's data buffer which should be
+accessible through skb in net:* and through message char * from above. . .
