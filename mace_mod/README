@@ -1,10 +1,6 @@
 Egress correlation problem using per-cpu solution
 
-Ingress is trickier:
-
-Perhaps we can learn from mace-ping: trace-probes can infact get at the content of the packet:
-
-  From looking at do_syscall_64() regs should remain unchanged through to trace_sys_exit so let's use them!
+From looking at do_syscall_64() regs should remain unchanged through to trace_sys_exit so let's use them!
 
   
 regs <-> arg mapping (assuming x86_64, i.e. #define CONFIG_X86_64)
@@ -19,5 +15,15 @@ r9  : 5 (dest_len) socklen_t
 
   For recvmsg `si` should be pointer to struct msghdr.
 
-  Then do some checksum on packet's data buffer which should be
-accessible through skb in net:* and through message char * from above. . .
+
+Ingress (for now):
+  Calculate key based on packet's payload. Have to skip IP header because this
+will change during NAT.
+
+
+Go for the first 8 bytes after the ip header. This should capture
+sufficient identifying information for packets in a number of common formats:
+
+  ICMP: Type, code, checksum, id, sequence (entire ICMP header)
+  UDP: source port, dest port, length, checksum (entire UDP header)
+  TCP: source port, dest port, sequence number
