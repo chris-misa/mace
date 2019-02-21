@@ -53,6 +53,9 @@ static int inner_dev = -1;
 module_param(inner_dev, int, 0);
 MODULE_PARM_DESC(inner_dev, "Device id of inner devie");
 
+// Sudo Param: Premature eviction time in cycles.
+static unsigned long long premature_eviction_thresh = 100000000;
+
 #define SYSCALL_SENDTO 44
 #define SYSCALL_RECVMSG 47
 
@@ -84,13 +87,6 @@ static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
 int ingress_latencies_index = 0;
 DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
 
-// Work queue for cleaning up hash tables
-static void do_table_cleanup(void *unused);
-static int exit = 0;
-static struct workqueue_struct *table_cleanup_queue;
-static struct work_struct table_cleanup;
-static DECLARE_WORK(table_cleanup, do_table_cleanup, NULL);
-
 // Tracepoint pointers kept for cleanup
 static struct tracepoint *sys_enter_tracepoint;
 static struct tracepoint *net_dev_queue_tracepoint;
@@ -102,16 +98,6 @@ static struct tracepoint *sys_exit_tracepoint;
 // Per cpu state for send heuristic
 DEFINE_PER_CPU(unsigned long long, sys_enter_time);
 DEFINE_PER_CPU(unsigned char, sys_entered);
-
-void
-do_table_cleanup(void *unused)
-{
-  printk(KERN_INFO "Mace: running clean up thread\n");
-
-  if (!exit) {
-    queue_delayed_work(table_cleanup_queue, &table_cleanup, 1000);
-  }
-}
 
 //
 // Take timestamp and set sys_entered flag on sendto syscall
@@ -187,6 +173,7 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
   struct mace_latency *ml;
   struct iphdr *ip;
   u64 *key_ptr;
+  unsigned long long ts = rdtsc();
 
   // Filter for outer device
   if (skb->dev && mace_in_set(skb->dev->ifindex, outer_devs)) {
@@ -207,9 +194,11 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 
     if (ml->valid) {
       hash_del(&ml->hash_list);
-      printk(KERN_INFO "Mace: Overwritting old entries\n");
+      if (ts - ml->enter < premature_eviction_thresh) {
+        printk(KERN_INFO "Mace: Overwritting old entries\n");
+      }
     }
-    ml->enter = rdtsc();
+    ml->enter = ts;
     ml->key = *key_ptr;
     ml->valid = 1;
 
@@ -331,11 +320,6 @@ mace_mod_init(void)
 
   for_each_kernel_tracepoint(test_and_set_traceprobe, NULL);
 
-
-  // Start cleanup task
-  table_cleanup_queue = create_workqueue("mace_table_cleanup_queue");
-  queue_delayed_work(table_cleanup_queue, &table_cleanup, 1000);
-
   printk(KERN_INFO "Mace: running.\n");
 
   return 0;
@@ -368,12 +352,6 @@ mace_mod_exit(void)
       && tracepoint_probe_unregister(sys_exit_tracepoint, probe_sys_exit, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister sys_exit traceprobe.\n");
   }
-
-  // Stop cleanup work
-  exit = 1;
-  cancel_delayed_work(&table_cleanup);
-  flush_workqueue(table_cleanup_queue);
-  destroy_workqueue(table_cleanup_queue);
 
   printk(KERN_INFO "Mace: stopped.\n");
 }
