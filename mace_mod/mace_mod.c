@@ -55,8 +55,10 @@ MODULE_PARM_DESC(inner_dev, "Device id of inner devie");
 #define SYSCALL_RECVMSG 47
 
 #define MACE_LATENCIES_SIZE 128
+
 #define MACE_LATENCY_TABLE_BITS 4
-#define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
+// #define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
+#define MACE_LATENCY_TABLE_SIZE 3
 
 // Bitmaps to keep track of which device ids to listen on
 #define mace_in_set(id, set) ((1 << (id)) & (set))
@@ -85,8 +87,8 @@ DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
 static struct tracepoint *sys_enter_tracepoint;
 static struct tracepoint *net_dev_queue_tracepoint;
 static struct tracepoint *net_dev_start_xmit_tracepoint;
+
 static struct tracepoint *napi_gro_receive_entry_tracepoint;
-static struct tracepoint *netif_receive_skb_tracepoint;
 static struct tracepoint *sys_exit_tracepoint;
 
 // Per cpu state for send heuristic
@@ -178,8 +180,15 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 
     // This will silently overwrite previous entries if they're still around
     ml = ingress_latencies + (ingress_latencies_index++);
+    if (ingress_latencies_index == MACE_LATENCY_TABLE_SIZE) {
+      ingress_latencies_index = 0;
+    }
+
+    if (ml->valid) {
+      hash_del(&ml->hash_list);
+      printk(KERN_ALERT "Mace: Overwritting old entries\n");
+    }
     ml->enter = rdtsc();
-    ml->skb = skb;
     ml->key = *key_ptr;
     ml->valid = 1;
 
@@ -209,10 +218,12 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       ip = (struct iphdr *)msg->msg_iov->iov_base;
       key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
 
-      hash_for_each_possible(ingress_hash, ml, hash_list, *key_ptr) {
+      hash_for_each_possible(ingress_hash, ml, hash_list, key) {
         if (ml->key == key) {
           dt = rdtsc() - ml->enter;
+          // ml->valid = 0;
           printk(KERN_INFO "Mace: ingress latency: %lld cycles\n", dt);
+          hash_del(&ml->hash_list);
           break;
         }
       }
@@ -244,10 +255,6 @@ test_and_set_traceprobe(struct tracepoint *tp, void *unused)
   } else if (!strcmp(tp->name, "napi_gro_receive_entry")) {
     ret = tracepoint_probe_register(tp, probe_napi_gro_receive_entry, NULL);
     napi_gro_receive_entry_tracepoint = tp;
-    found = 1;
-  } else if (!strcmp(tp->name, "netif_receive_skb")) {
-    ret = tracepoint_probe_register(tp, probe_netif_receive_skb, NULL);
-    netif_receive_skb_tracepoint = tp;
     found = 1;
   } else if (!strcmp(tp->name, "sys_exit")) {
     ret = tracepoint_probe_register(tp, probe_sys_exit, NULL);
@@ -329,10 +336,6 @@ mace_mod_exit(void)
   if (napi_gro_receive_entry_tracepoint
       && tracepoint_probe_unregister(napi_gro_receive_entry_tracepoint, probe_napi_gro_receive_entry, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister napi_gro_receive_entry_tracepoint.\n");
-  }
-  if (netif_receive_skb_tracepoint
-      && tracepoint_probe_unregister(netif_receive_skb_tracepoint, probe_netif_receive_skb, NULL)) {
-    printk(KERN_WARNING "Mace: Failed to unregister netif_receive_skb traceprobe.\n");
   }
   if (sys_exit_tracepoint
       && tracepoint_probe_unregister(sys_exit_tracepoint, probe_sys_exit, NULL)) {
