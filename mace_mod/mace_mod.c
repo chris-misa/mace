@@ -39,6 +39,12 @@
 
 #include "logic.h"
 
+#define check_ipv4(ip) \
+  if (ip->version != 4) { \
+    printk(KERN_INFO "Mace: Ignoring non-ipv4 packet.\n"); \
+    return; \
+  }
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
 MODULE_DESCRIPTION("Test of sysfs file system");
@@ -80,6 +86,7 @@ void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
   if (id == SYSCALL_SENDTO) {
+    // Assuming user messages starts at beginning of payload
     register_entry_egress((u64 *)regs->si);
   }
 }
@@ -90,8 +97,6 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 void
 probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *dev)
 {
-  struct mace_latency *ml;
-  unsigned long long dt;
   struct iphdr *ip;
   u64 key;
   
@@ -100,21 +105,10 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 
     // Get key from payload bytes and store in table
     ip = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
-    if (ip->version != 4) {
-      printk(KERN_INFO "Mace: Ignoring non-ipv4 packet\n");
-      return;
-    }
-    key = *((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
+    check_ipv4(ip);
 
-    hash_for_each_possible(egress_hash, ml, hash_list, key) {
-      if (ml->key == key) {
-        dt = rdtsc() - ml->enter;
-        ml->valid = 0;
-        hash_del(&ml->hash_list);
-        printk(KERN_INFO "Mace: egress latency: %lld cycles\n", dt);
-        break;
-      }
-    }
+    key =*((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
+    register_exit_egress(key);
   }
 }
 
@@ -131,10 +125,8 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
     
     // Get key from payload bytes and store in ingress table
     ip = (struct iphdr *)skb->data;
-    if (ip->version != 4) {
-      printk(KERN_INFO "Mace: Ignoring non-ipv4 packet\n");
-      return;
-    }
+    check_ipv4(ip);
+
     register_entry_ingress((u64 *)(skb->data + ip->ihl * 4));
   }
 }
@@ -145,11 +137,8 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 void
 probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
-  struct mace_latency *ml;
   struct user_msghdr *msg;
   struct iphdr *ip;
-  unsigned long long dt;
-
   u64 key;
 
   if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
@@ -159,17 +148,10 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       // Raw socket gives us the ip header,
       // probably will need a switch here based on socket type.
       ip = (struct iphdr *)msg->msg_iov->iov_base;
-      key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
+      check_ipv4(ip);
 
-      hash_for_each_possible(ingress_hash, ml, hash_list, key) {
-        if (ml->key == key) {
-          dt = rdtsc() - ml->enter;
-          ml->valid = 0;
-          hash_del(&ml->hash_list);
-          printk(KERN_INFO "Mace: ingress latency: %lld cycles\n", dt);
-          break;
-        }
-      }
+      key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
+      register_exit_ingress(key);
     }
   }
 }
