@@ -6,6 +6,7 @@
 
 #define LINUX
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/kobject.h>
@@ -33,7 +34,8 @@
 #include <asm/syscall.h>
 
 #include <linux/sched.h>
-#include <linux/fdtable.h>
+#include <linux/workqueue.h>
+#include <linux/interrupt.h>
 
 #include <linux/hashtable.h>
 
@@ -56,7 +58,7 @@ MODULE_PARM_DESC(inner_dev, "Device id of inner devie");
 
 #define MACE_LATENCIES_SIZE 128
 
-#define MACE_LATENCY_TABLE_BITS 4
+#define MACE_LATENCY_TABLE_BITS 8
 #define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
 
 // Bitmaps to keep track of which device ids to listen on
@@ -77,10 +79,17 @@ struct mace_latency {
 
 static struct mace_latency egress_latencies[MACE_LATENCIES_SIZE];
 
+// Using built in hash table for ingress table
 static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
 int ingress_latencies_index = 0;
 DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
 
+// Work queue for cleaning up hash tables
+static void do_table_cleanup(void *unused);
+static int exit = 0;
+static struct workqueue_struct *table_cleanup_queue;
+static struct work_struct table_cleanup;
+static DECLARE_WORK(table_cleanup, do_table_cleanup, NULL);
 
 // Tracepoint pointers kept for cleanup
 static struct tracepoint *sys_enter_tracepoint;
@@ -93,6 +102,16 @@ static struct tracepoint *sys_exit_tracepoint;
 // Per cpu state for send heuristic
 DEFINE_PER_CPU(unsigned long long, sys_enter_time);
 DEFINE_PER_CPU(unsigned char, sys_entered);
+
+void
+do_table_cleanup(void *unused)
+{
+  printk(KERN_INFO "Mace: running clean up thread\n");
+
+  if (!exit) {
+    queue_delayed_work(table_cleanup_queue, &table_cleanup, 1000);
+  }
+}
 
 //
 // Take timestamp and set sys_entered flag on sendto syscall
@@ -167,7 +186,6 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 {
   struct mace_latency *ml;
   struct iphdr *ip;
-  struct icmphdr *icmp;
   u64 *key_ptr;
 
   // Filter for outer device
@@ -175,6 +193,10 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
     
     // Get key from payload bytes and store in table
     ip = (struct iphdr *)skb->data;
+    if (ip->version != 4) {
+      printk(KERN_INFO "Mace: Ignoring non-ipv4 packet\n");
+      return;
+    }
     key_ptr = (u64 *)(skb->data + ip->ihl * 4);
 
     // This will silently overwrite previous entries if they're still around
@@ -185,7 +207,7 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 
     if (ml->valid) {
       hash_del(&ml->hash_list);
-      printk(KERN_WARNING "Mace: Overwritting old entries\n");
+      printk(KERN_INFO "Mace: Overwritting old entries\n");
     }
     ml->enter = rdtsc();
     ml->key = *key_ptr;
@@ -309,6 +331,11 @@ mace_mod_init(void)
 
   for_each_kernel_tracepoint(test_and_set_traceprobe, NULL);
 
+
+  // Start cleanup task
+  table_cleanup_queue = create_workqueue("mace_table_cleanup_queue");
+  queue_delayed_work(table_cleanup_queue, &table_cleanup, 1000);
+
   printk(KERN_INFO "Mace: running.\n");
 
   return 0;
@@ -320,6 +347,7 @@ mace_mod_init(void)
 void __exit
 mace_mod_exit(void)
 {
+  // Unregister tracepoints
   if (sys_enter_tracepoint
       && tracepoint_probe_unregister(sys_enter_tracepoint, probe_sys_enter, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister sys_enter traceprobe.\n");
@@ -340,6 +368,13 @@ mace_mod_exit(void)
       && tracepoint_probe_unregister(sys_exit_tracepoint, probe_sys_exit, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister sys_exit traceprobe.\n");
   }
+
+  // Stop cleanup work
+  exit = 1;
+  cancel_delayed_work(&table_cleanup);
+  flush_workqueue(table_cleanup_queue);
+  destroy_workqueue(table_cleanup_queue);
+
   printk(KERN_INFO "Mace: stopped.\n");
 }
 
