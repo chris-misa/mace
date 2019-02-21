@@ -53,16 +53,13 @@ static int inner_dev = -1;
 module_param(inner_dev, int, 0);
 MODULE_PARM_DESC(inner_dev, "Device id of inner devie");
 
-// Sudo Param: Premature eviction time in cycles.
+// Sudo Param: Premature eviction time:
+//   time, in cycles, after which it is 'normal' to evict a table entry
 static unsigned long long premature_eviction_thresh = 100000000;
 
+// Syscall numbers. . .waiting for a better day
 #define SYSCALL_SENDTO 44
 #define SYSCALL_RECVMSG 47
-
-#define MACE_LATENCIES_SIZE 128
-
-#define MACE_LATENCY_TABLE_BITS 8
-#define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
 
 // Bitmaps to keep track of which device ids to listen on
 #define mace_in_set(id, set) ((1 << (id)) & (set))
@@ -70,8 +67,7 @@ static unsigned long long premature_eviction_thresh = 100000000;
 unsigned long inner_devs = 0;
 unsigned long outer_devs = 0;
 
-// Simple statically allocated hash table
-#define mace_hash(key) ((unsigned long long)(key) % MACE_LATENCIES_SIZE)
+// In-kernel tracking of packets
 struct mace_latency {
   unsigned long long enter;
   struct sk_buff *skb;
@@ -80,86 +76,88 @@ struct mace_latency {
   struct hlist_node hash_list;
 };
 
-static struct mace_latency egress_latencies[MACE_LATENCIES_SIZE];
+#define MACE_LATENCY_TABLE_BITS 8
+#define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
 
-// Using built in hash table for ingress table
+// Egress hash table
+static struct mace_latency egress_latencies[MACE_LATENCY_TABLE_SIZE];
+int egress_latencies_index = 0;
+DEFINE_HASHTABLE(egress_hash, MACE_LATENCY_TABLE_BITS);
+
+// Ingress hash table
 static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
 int ingress_latencies_index = 0;
 DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
 
 // Tracepoint pointers kept for cleanup
 static struct tracepoint *sys_enter_tracepoint;
-static struct tracepoint *net_dev_queue_tracepoint;
 static struct tracepoint *net_dev_start_xmit_tracepoint;
-
 static struct tracepoint *napi_gro_receive_entry_tracepoint;
 static struct tracepoint *sys_exit_tracepoint;
 
-// Per cpu state for send heuristic
-DEFINE_PER_CPU(unsigned long long, sys_enter_time);
-DEFINE_PER_CPU(unsigned char, sys_entered);
-
 //
-// Take timestamp and set sys_entered flag on sendto syscall
+// Egress inner tracepoint
 //
 void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
-  if (id == SYSCALL_SENDTO) {
-    this_cpu_write(sys_enter_time, rdtsc());
-    this_cpu_write(sys_entered, 1);
-  }
-}
-
-//
-// If queuing to an entry dev,
-// connect sys_enter's timestamp with kernel's sk_buff address.
-// Reset sys_entered flag either way.
-//
-void
-probe_net_dev_queue(void *unused, struct sk_buff *skb)
-{
   struct mace_latency *ml;
+  u64 *key_ptr;
+  unsigned long long ts = rdtsc();
 
-  if (skb->dev
-        && mace_in_set(skb->dev->ifindex, inner_devs)
-        && this_cpu_read(sys_entered)) {
+  if (id == SYSCALL_SENDTO) {
 
-    // Start new active latency, over-writing anything
-    // which might have hashed into the same slot.
-    ml = egress_latencies + mace_hash(skb);
-    ml->enter = this_cpu_read(sys_enter_time);
-    ml->skb = skb;
+    key_ptr = (u64 *)regs->si;
+
+    ml = egress_latencies + (egress_latencies_index++);
+    if (egress_latencies_index == MACE_LATENCY_TABLE_SIZE) {
+      egress_latencies_index = 0;
+    }
+    
+    if (ml->valid) {
+      hash_del(&ml->hash_list);
+      if (ts - ml->enter < premature_eviction_thresh) {
+        printk(KERN_INFO "Mace: Overwritting old egress entries.\n");
+      }
+    }
+    ml->enter = ts;
+    ml->key = *key_ptr;
     ml->valid = 1;
-  }
 
-  // Always clear this flag assuming syncronous sendtos
-  this_cpu_write(sys_entered, 0);
+    hash_add(egress_hash, &ml->hash_list, ml->key);
+  }
 }
 
 //
-// Report latency if a matching sk_buff was previously timestamped.
-//
-// Another idea would be to watch both start_xmit and xmit and pick an egress time
-// between the two to account for driver latency.
+// Egress outer tracepoint
 //
 void
 probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *dev)
 {
   struct mace_latency *ml;
   unsigned long long dt;
+  struct iphdr *ip;
+  u64 key;
   
   // Filter for outer devices
   if (mace_in_set(dev->ifindex, outer_devs)) {
 
-    // Look for active latency for this skb
-    ml = egress_latencies + mace_hash(skb);
-    if (ml->valid && skb == ml->skb) {
-      dt = rdtsc() - ml->enter;
-      ml->valid = 0;
+    // Get key from payload bytes and store in table
+    ip = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
+    if (ip->version != 4) {
+      printk(KERN_INFO "Mace: Ignoring non-ipv4 packet\n");
+      return;
+    }
+    key = *((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
 
-      // Report ingress latency
-      printk(KERN_INFO "Mace: egress latency of %lld cycles.\n", dt);
+    hash_for_each_possible(egress_hash, ml, hash_list, key) {
+      if (ml->key == key) {
+        dt = rdtsc() - ml->enter;
+        ml->valid = 0;
+        hash_del(&ml->hash_list);
+        printk(KERN_INFO "Mace: egress latency: %lld cycles\n", dt);
+        break;
+      }
     }
   }
 }
@@ -195,7 +193,7 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
     if (ml->valid) {
       hash_del(&ml->hash_list);
       if (ts - ml->enter < premature_eviction_thresh) {
-        printk(KERN_INFO "Mace: Overwritting old entries\n");
+        printk(KERN_INFO "Mace: Overwritting old ingress entries\n");
       }
     }
     ml->enter = ts;
@@ -254,10 +252,6 @@ test_and_set_traceprobe(struct tracepoint *tp, void *unused)
     ret = tracepoint_probe_register(tp, probe_sys_enter, NULL);
     sys_enter_tracepoint = tp;
     found = 1;
-  } else if (!strcmp(tp->name, "net_dev_queue")) {
-    ret = tracepoint_probe_register(tp, probe_net_dev_queue, NULL);
-    net_dev_queue_tracepoint = tp;
-    found = 1;
   } else if (!strcmp(tp->name, "net_dev_start_xmit")) {
     ret = tracepoint_probe_register(tp, probe_net_dev_start_xmit, NULL);
     net_dev_start_xmit_tracepoint = tp;
@@ -278,15 +272,6 @@ test_and_set_traceprobe(struct tracepoint *tp, void *unused)
 }
 
 //
-// Initialize per-cpu flags
-//
-void
-init_per_cpu_variables(void *unused)
-{
-  this_cpu_write(sys_entered, 0);
-}
-
-//
 // Module initialization
 //
 int __init
@@ -294,8 +279,9 @@ mace_mod_init(void)
 {
   int ret = 0;
   sys_enter_tracepoint = NULL;
-  net_dev_queue_tracepoint = NULL;
   net_dev_start_xmit_tracepoint = NULL;
+  napi_gro_receive_entry_tracepoint = NULL;
+  sys_exit_tracepoint = NULL;
 
   // Check for required parameters
   if (outer_dev < 0) {
@@ -315,9 +301,6 @@ mace_mod_init(void)
   mace_add_set(outer_dev, outer_devs);
   mace_add_set(inner_dev, inner_devs);
 
-  // Set up
-  on_each_cpu(init_per_cpu_variables, NULL, 1);
-
   for_each_kernel_tracepoint(test_and_set_traceprobe, NULL);
 
   printk(KERN_INFO "Mace: running.\n");
@@ -335,10 +318,6 @@ mace_mod_exit(void)
   if (sys_enter_tracepoint
       && tracepoint_probe_unregister(sys_enter_tracepoint, probe_sys_enter, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister sys_enter traceprobe.\n");
-  }
-  if (net_dev_queue_tracepoint
-      && tracepoint_probe_unregister(net_dev_queue_tracepoint, probe_net_dev_queue, NULL)) {
-    printk(KERN_WARNING "Mace: Failed to unregister net_dev_queue traceprobe.\n");
   }
   if (net_dev_start_xmit_tracepoint
       && tracepoint_probe_unregister(net_dev_start_xmit_tracepoint, probe_net_dev_start_xmit, NULL)) {
