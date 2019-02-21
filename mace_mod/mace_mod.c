@@ -57,8 +57,7 @@ MODULE_PARM_DESC(inner_dev, "Device id of inner devie");
 #define MACE_LATENCIES_SIZE 128
 
 #define MACE_LATENCY_TABLE_BITS 4
-// #define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
-#define MACE_LATENCY_TABLE_SIZE 3
+#define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
 
 // Bitmaps to keep track of which device ids to listen on
 #define mace_in_set(id, set) ((1 << (id)) & (set))
@@ -186,7 +185,7 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 
     if (ml->valid) {
       hash_del(&ml->hash_list);
-      printk(KERN_ALERT "Mace: Overwritting old entries\n");
+      printk(KERN_WARNING "Mace: Overwritting old entries\n");
     }
     ml->enter = rdtsc();
     ml->key = *key_ptr;
@@ -221,9 +220,9 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       hash_for_each_possible(ingress_hash, ml, hash_list, key) {
         if (ml->key == key) {
           dt = rdtsc() - ml->enter;
-          // ml->valid = 0;
-          printk(KERN_INFO "Mace: ingress latency: %lld cycles\n", dt);
+          ml->valid = 0;
           hash_del(&ml->hash_list);
+          printk(KERN_INFO "Mace: ingress latency: %lld cycles\n", dt);
           break;
         }
       }
