@@ -35,6 +35,8 @@
 #include <linux/sched.h>
 #include <linux/fdtable.h>
 
+#include <linux/hashtable.h>
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
 MODULE_DESCRIPTION("Test of sysfs file system");
@@ -53,6 +55,8 @@ MODULE_PARM_DESC(inner_dev, "Device id of inner devie");
 #define SYSCALL_RECVMSG 47
 
 #define MACE_LATENCIES_SIZE 128
+#define MACE_LATENCY_TABLE_BITS 4
+#define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
 
 // Bitmaps to keep track of which device ids to listen on
 #define mace_in_set(id, set) ((1 << (id)) & (set))
@@ -66,9 +70,16 @@ struct mace_latency {
   unsigned long long enter;
   struct sk_buff *skb;
   int valid;
+  u64 key;
+  struct hlist_node hash_list;
 };
+
 static struct mace_latency egress_latencies[MACE_LATENCIES_SIZE];
-static struct mace_latency ingress_latencies[MACE_LATENCIES_SIZE];
+
+static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
+int ingress_latencies_index = 0;
+DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
+
 
 // Tracepoint pointers kept for cleanup
 static struct tracepoint *sys_enter_tracepoint;
@@ -156,64 +167,55 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
   struct mace_latency *ml;
   struct iphdr *ip;
   struct icmphdr *icmp;
-  u64 *payload;
+  u64 *key_ptr;
 
   // Filter for outer device
   if (skb->dev && mace_in_set(skb->dev->ifindex, outer_devs)) {
     
-    // Get key from payload bytes
+    // Get key from payload bytes and store in table
     ip = (struct iphdr *)skb->data;
-    payload = (u64 *)(skb->data + ip->ihl * 4);
+    key_ptr = (u64 *)(skb->data + ip->ihl * 4);
 
-    printk(KERN_INFO "Mace: ingress entry key: %08llX\n", *payload);
-
-    // Store this arrival time in table
-    ml = ingress_latencies + mace_hash(skb);
+    // This will silently overwrite previous entries if they're still around
+    ml = ingress_latencies + (ingress_latencies_index++);
     ml->enter = rdtsc();
     ml->skb = skb;
+    ml->key = *key_ptr;
     ml->valid = 1;
 
+    hash_add(ingress_hash, &ml->hash_list, ml->key);
   }
 }
 
-void
-probe_netif_receive_skb(void *unused, struct sk_buff *skb)
-{
-  struct mace_latency *ml;
-  unsigned long long dt;
-
-  // Filter for inner devices
-  if (skb->dev && mace_in_set(skb->dev->ifindex, inner_devs)) {
-
-    // Look for active latency for this skb
-    ml = ingress_latencies + mace_hash(skb);
-    if (ml->valid && skb == ml->skb) {
-      dt = rdtsc() - ml->enter;
-      ml->valid = 0;
-
-      // Report egress latency
-      printk(KERN_INFO "Mace: ingress latency of %lld cycles.\n", dt);
-    }
-  }
-}
-
+//
+// Ingress inner exit tracepoint
+//
 void
 probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
+  struct mace_latency *ml;
   struct user_msghdr *msg;
   struct iphdr *ip;
-  struct icmphdr *icmp;
+  unsigned long long dt;
 
-  u64 *payload;
+  u64 key;
 
   if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
     msg = (struct user_msghdr *)regs->si;
     if (msg) {
-      // Raw socker gives us the ip header
-      // For example we get icmp echo sequence
+
+      // Raw socket gives us the ip header,
+      // probably will need a switch here based on socket type.
       ip = (struct iphdr *)msg->msg_iov->iov_base;
-      payload = (u64 *)(msg->msg_iov->iov_base + ip->ihl * 4);
-      printk(KERN_INFO "Mace: sys_exit key: %08llX\n", *payload);
+      key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
+
+      hash_for_each_possible(ingress_hash, ml, hash_list, *key_ptr) {
+        if (ml->key == key) {
+          dt = rdtsc() - ml->enter;
+          printk(KERN_INFO "Mace: ingress latency: %lld cycles\n", dt);
+          break;
+        }
+      }
     }
   }
 }
