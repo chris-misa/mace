@@ -37,7 +37,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
-#include <linux/hashtable.h>
+#include "logic.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
@@ -67,28 +67,6 @@ static unsigned long long premature_eviction_thresh = 100000000;
 unsigned long inner_devs = 0;
 unsigned long outer_devs = 0;
 
-// In-kernel tracking of packets
-struct mace_latency {
-  unsigned long long enter;
-  struct sk_buff *skb;
-  int valid;
-  u64 key;
-  struct hlist_node hash_list;
-};
-
-#define MACE_LATENCY_TABLE_BITS 8
-#define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
-
-// Egress hash table
-static struct mace_latency egress_latencies[MACE_LATENCY_TABLE_SIZE];
-int egress_latencies_index = 0;
-DEFINE_HASHTABLE(egress_hash, MACE_LATENCY_TABLE_BITS);
-
-// Ingress hash table
-static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
-int ingress_latencies_index = 0;
-DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
-
 // Tracepoint pointers kept for cleanup
 static struct tracepoint *sys_enter_tracepoint;
 static struct tracepoint *net_dev_start_xmit_tracepoint;
@@ -101,30 +79,8 @@ static struct tracepoint *sys_exit_tracepoint;
 void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
-  struct mace_latency *ml;
-  u64 *key_ptr;
-  unsigned long long ts = rdtsc();
-
   if (id == SYSCALL_SENDTO) {
-
-    key_ptr = (u64 *)regs->si;
-
-    ml = egress_latencies + (egress_latencies_index++);
-    if (egress_latencies_index == MACE_LATENCY_TABLE_SIZE) {
-      egress_latencies_index = 0;
-    }
-    
-    if (ml->valid) {
-      hash_del(&ml->hash_list);
-      if (ts - ml->enter < premature_eviction_thresh) {
-        printk(KERN_INFO "Mace: Overwritting old egress entries.\n");
-      }
-    }
-    ml->enter = ts;
-    ml->key = *key_ptr;
-    ml->valid = 1;
-
-    hash_add(egress_hash, &ml->hash_list, ml->key);
+    register_entry_egress((u64 *)regs->si);
   }
 }
 
@@ -168,39 +124,18 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 void
 probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 {
-  struct mace_latency *ml;
   struct iphdr *ip;
-  u64 *key_ptr;
-  unsigned long long ts = rdtsc();
 
   // Filter for outer device
   if (skb->dev && mace_in_set(skb->dev->ifindex, outer_devs)) {
     
-    // Get key from payload bytes and store in table
+    // Get key from payload bytes and store in ingress table
     ip = (struct iphdr *)skb->data;
     if (ip->version != 4) {
       printk(KERN_INFO "Mace: Ignoring non-ipv4 packet\n");
       return;
     }
-    key_ptr = (u64 *)(skb->data + ip->ihl * 4);
-
-    // This will silently overwrite previous entries if they're still around
-    ml = ingress_latencies + (ingress_latencies_index++);
-    if (ingress_latencies_index == MACE_LATENCY_TABLE_SIZE) {
-      ingress_latencies_index = 0;
-    }
-
-    if (ml->valid) {
-      hash_del(&ml->hash_list);
-      if (ts - ml->enter < premature_eviction_thresh) {
-        printk(KERN_INFO "Mace: Overwritting old ingress entries\n");
-      }
-    }
-    ml->enter = ts;
-    ml->key = *key_ptr;
-    ml->valid = 1;
-
-    hash_add(ingress_hash, &ml->hash_list, ml->key);
+    register_entry_ingress((u64 *)(skb->data + ip->ihl * 4));
   }
 }
 
