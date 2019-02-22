@@ -90,7 +90,7 @@ DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
       dt = rdtsc() - ml->enter; \
       ml->valid = 0; \
       hash_del(&ml->hash_list); \
-      push_event(dt, direction) \
+      mace_push_event(dt, direction); \
       break; \
     } \
   } \

@@ -31,7 +31,7 @@ struct mace_latency_event {
 };
 
 #define MACE_EVENT_QUEUE_SIZE 1024
-static struct mace_latency_event *event_queue;
+static struct mace_latency_event event_queue[MACE_EVENT_QUEUE_SIZE];
 static unsigned long event_read_head = 0;
 static unsigned long event_write_head = 0;
 
@@ -45,7 +45,7 @@ mace_push_event(unsigned long long latency, mace_latency_type type)
 }
 
 __always_inline struct mace_latency_event *
-mace_pop_event()
+mace_pop_event(void)
 {
   struct mace_latency_event *ret = event_queue + event_read_head;
   if (event_read_head == event_write_head) {
@@ -57,7 +57,7 @@ mace_pop_event()
 }
 
 __always_inline void
-mace_buffer_clear()
+mace_buffer_clear(void)
 {
   event_read_head = event_write_head;
 }
