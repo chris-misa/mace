@@ -90,7 +90,7 @@ DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
       dt = rdtsc() - ml->enter; \
       ml->valid = 0; \
       hash_del(&ml->hash_list); \
-      printk(KERN_INFO "Mace: %s latency: %lld cycles\n", direction, dt); \
+      push_event(dt, direction) \
       break; \
     } \
   } \
@@ -99,10 +99,12 @@ DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
 /*
  * Executes register_exit() for egress table
  */
-#define register_exit_egress(key) register_exit(egress_hash, key, "egress")
+#define register_exit_egress(key) \
+  register_exit(egress_hash, key, MACE_LATENCY_EGRESS)
 
 /*
  * Executes register_exit() for ingress table
  */
-#define register_exit_ingress(key) register_exit(ingress_hash, key, "ingress")
+#define register_exit_ingress(key) \
+  register_exit(ingress_hash, key, MACE_LATENCY_INGRESS)
 

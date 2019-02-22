@@ -38,7 +38,10 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
+#include "ring_buffer.h"
 #include "logic.h"
+#include "sysfs.h"
+
 
 #ifdef DEBUG
   #define check_ipv4(ip) \
@@ -223,13 +226,17 @@ mace_mod_init(void)
     return ret;
   }
 
+  // Add initial params to dev sets for now
   mace_add_set(outer_dev, outer_devs);
   mace_add_set(inner_dev, inner_devs);
 
+  // Set tracepoints
   for_each_kernel_tracepoint(test_and_set_traceprobe, NULL);
 
-  printk(KERN_INFO "Mace: running.\n");
+  // Initialize sysfs entries
+  mace_init_sysfs();
 
+  printk(KERN_INFO "Mace: running.\n");
   return 0;
 }
 
@@ -256,6 +263,9 @@ mace_mod_exit(void)
       && tracepoint_probe_unregister(sys_exit_tracepoint, probe_sys_exit, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister sys_exit traceprobe.\n");
   }
+
+  // Cleanup sysfs entries
+  mace_free_sysfs();
 
   printk(KERN_INFO "Mace: stopped.\n");
 }
