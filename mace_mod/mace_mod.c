@@ -4,6 +4,7 @@
 // 2019, Chris Misa
 //
 
+// #define DEBUG
 #define LINUX
 
 #include <linux/kernel.h>
@@ -39,11 +40,18 @@
 
 #include "logic.h"
 
-#define check_ipv4(ip) \
-  if (ip->version != 4) { \
-    printk(KERN_INFO "Mace: Ignoring non-ipv4 packet.\n"); \
-    return; \
-  }
+#ifdef DEBUG
+  #define check_ipv4(ip) \
+    if (ip->version != 4) { \
+      printk(KERN_INFO "Mace: Ignoring non-ipv4 packet.\n"); \
+      return; \
+    }
+#else
+  #define check_ipv4(ip) \
+    if (ip->version != 4) { \
+      return; \
+    }
+#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
