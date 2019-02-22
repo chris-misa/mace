@@ -49,9 +49,6 @@ DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
   \
   if (ml->valid) { \
     hash_del(&ml->hash_list); \
-    if (ts - ml->enter < premature_eviction_thresh) { \
-      printk(KERN_INFO "Mace: Overwriting young entry in table.\n"); \
-    } \
   } \
   \
   ml->enter = ts; \
