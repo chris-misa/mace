@@ -45,13 +45,13 @@
 
 #ifdef DEBUG
   #define check_ipv4(ip) \
-    if (ip->version != 4) { \
+    if (!ip || ip->version != 4) { \
       printk(KERN_INFO "Mace: Ignoring non-ipv4 packet.\n"); \
       return; \
     }
 #else
   #define check_ipv4(ip) \
-    if (ip->version != 4) { \
+    if (!ip || ip->version != 4) { \
       return; \
     }
 #endif

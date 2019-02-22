@@ -86,7 +86,7 @@ DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
   struct mace_latency *ml; \
   unsigned long long dt; \
   hash_for_each_possible(hash_table, ml, hash_list, key) { \
-    if (ml->key == (key)) { \
+    if (ml && ml->key == (key)) { \
       dt = rdtsc() - ml->enter; \
       ml->valid = 0; \
       hash_del(&ml->hash_list); \
