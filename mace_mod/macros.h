@@ -6,29 +6,6 @@
 // 2019, Chris Misa
 //
 
-#include <linux/hashtable.h>
-
-// In-kernel tracking of packets
-struct mace_latency {
-  unsigned long long enter;
-  struct sk_buff *skb;
-  int valid;
-  u64 key;
-  struct hlist_node hash_list;
-};
-
-#define MACE_LATENCY_TABLE_BITS 8
-#define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
-
-// Egress hash table
-static struct mace_latency egress_latencies[MACE_LATENCY_TABLE_SIZE];
-int egress_latencies_index = 0;
-DEFINE_HASHTABLE(egress_hash, MACE_LATENCY_TABLE_BITS);
-
-// Ingress hash table
-static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
-int ingress_latencies_index = 0;
-DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
 
 /*
  * Generates code to register entry of packet into latency segment.

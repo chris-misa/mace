@@ -1,5 +1,6 @@
-obj-m += sysfs.o
-mace-objs := mace.o
+obj-m += mace.o
+mace-objs := module.o sysfs.o ring_buffer.o
+
 
 release := $(shell uname -r)
 

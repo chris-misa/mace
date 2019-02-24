@@ -5,11 +5,29 @@
 //
 
 #include "sysfs.h"
-#include "ring_buffer.h"
 
-MODULE_LICENSE("GPL");
+#define MACE_SYSFS_NAME "mace"
+#define MACE_SYSFS_PARENT kernel_kobj
 
-static int
+//
+// Report latency approximations in nano seconds
+// Cycles / (1 000 Cycles / sec) * (1 000 000 000 nsec / sec)
+//
+#define mace_cycles_to_ns(c) (((c) * 1000000) / tsc_khz)
+
+//
+// Mace kobj entry
+//
+static struct kobject *mace_kobj;
+
+//
+// Latencies file
+//
+static ssize_t show_latencies(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
+static ssize_t store_latencies(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
+static struct kobj_attribute mace_latencies = __ATTR(latencies_ns, 0660, show_latencies, store_latencies);
+
+int
 mace_init_sysfs(void)
 {
   int err = 0;
@@ -27,7 +45,7 @@ mace_init_sysfs(void)
   return err;
 }
 
-static void
+void
 mace_free_sysfs(void)
 {
   kobject_put(mace_kobj);
