@@ -1,4 +1,5 @@
-obj-m += mace_mod.o
+obj-m += sysfs.o
+mace-objs := mace.o
 
 release := $(shell uname -r)
 
