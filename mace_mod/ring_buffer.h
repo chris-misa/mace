@@ -4,6 +4,9 @@
 // 2019, Chris Misa
 //
 
+#ifndef MACE_RING_BUFFER_H
+#define MACE_RING_BUFFER_H
+
 typedef enum {
   MACE_LATENCY_EGRESS,
   MACE_LATENCY_INGRESS
@@ -61,3 +64,5 @@ mace_buffer_clear(void)
 {
   event_read_head = event_write_head;
 }
+
+#endif
