@@ -24,8 +24,8 @@
 #define mace_in_set(id, set) ((1 << (id)) & (set))
 #define mace_add_set(id, set) (set) |= 1 << (id)
 
-unsigned long inner_devs = 0;
-unsigned long outer_devs = 0;
+static unsigned long inner_devs = 0;
+static unsigned long outer_devs = 0;
 
 // Tracepoint pointers kept for cleanup
 static struct tracepoint *sys_enter_tracepoint;
@@ -34,9 +34,33 @@ static struct tracepoint *napi_gro_receive_entry_tracepoint;
 static struct tracepoint *sys_exit_tracepoint;
 
 //
+// In-kernel packet tracking
+//
+#define MACE_LATENCY_TABLE_BITS 8
+#define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
+
+struct mace_latency {
+  unsigned long long enter;
+  struct sk_buff *skb;
+  int valid;
+  u64 key;
+  struct hlist_node hash_list;
+};
+
+// Egress latency table
+static struct mace_latency egress_latencies[MACE_LATENCY_TABLE_SIZE];
+static int egress_latencies_index = 0;
+static DEFINE_HASHTABLE(egress_hash, MACE_LATENCY_TABLE_BITS);
+
+// Ingress latency table
+static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
+static int ingress_latencies_index = 0;
+static DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
+
+//
 // Egress inner tracepoint
 //
-void
+struct void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
   if (id == SYSCALL_SENDTO) {
@@ -48,7 +72,7 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 //
 // Egress outer tracepoint
 //
-void
+static void
 probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *dev)
 {
   struct iphdr *ip;
@@ -69,7 +93,7 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 //
 // Ingress outer entry tracepoint.
 //
-void
+static void
 probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 {
   struct iphdr *ip;
@@ -88,7 +112,7 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 //
 // Ingress inner exit tracepoint
 //
-void
+static void
 probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
   struct user_msghdr *msg;
@@ -113,7 +137,7 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 //
 // Identify target tracepoints by name
 //
-void
+static void
 test_and_set_traceprobe(struct tracepoint *tp, void *unused)
 {
   int ret = 0;

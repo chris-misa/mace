@@ -69,33 +69,8 @@ static int inner_dev = -1;
 module_param(inner_dev, int, 0);
 MODULE_PARM_DESC(inner_dev, "Device id of inner devie");
 
-
 // Syscall numbers. . .waiting for a better day
 #define SYSCALL_SENDTO 44
 #define SYSCALL_RECVMSG 47
-
-//
-// In-kernel packet tracking
-//
-#define MACE_LATENCY_TABLE_BITS 8
-#define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
-
-struct mace_latency {
-  unsigned long long enter;
-  struct sk_buff *skb;
-  int valid;
-  u64 key;
-  struct hlist_node hash_list;
-};
-
-// Egress latency table
-static struct mace_latency egress_latencies[MACE_LATENCY_TABLE_SIZE];
-int egress_latencies_index = 0;
-DEFINE_HASHTABLE(egress_hash, MACE_LATENCY_TABLE_BITS);
-
-// Ingress latency table
-static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
-int ingress_latencies_index = 0;
-DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
 
 #endif
