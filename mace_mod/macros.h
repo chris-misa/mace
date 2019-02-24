@@ -1,19 +1,23 @@
 //
 // Initial MACE module work
 //
-// Defines and macros to implement the inter-tracepoint logic.
+// Macros to implement MACE inter-device accounting.
+// Note: hash_add requires an array (not a pointer)
+// so we cannot implement these as inline functions.
 //
 // 2019, Chris Misa
 //
 
 
 /*
- * Generates code to register entry of packet into latency segment.
+ * Register entry of packet into latency segment.
  *
  *   table: name of static table of struct mace_latency
  *   index: index into above table
  *   hash_table: the kernel hash table object
  *   key_ptr: a pointer to the hash key
+ *
+ * Note: might need to synchronize instruction re-ordering before valid = 1
  */
 #define register_entry(table, index, hash_table, key_ptr) \
 { \
@@ -35,28 +39,11 @@
 }
 
 /*
- * Executes register_entry() for egress table
- */
-#define register_entry_egress(key_ptr) \
-  register_entry(egress_latencies, \
-                 egress_latencies_index, \
-                 egress_hash, \
-                 key_ptr)
-
-/*
- * Executes register_entry() for ingress table
- */
-#define register_entry_ingress(key_ptr) \
-  register_entry(ingress_latencies, \
-                 ingress_latencies_index, \
-                 ingress_hash, \
-                 key_ptr)
-
-/*
  * Generate code to register exit of packet from latency segment
  *
  *   hash_table: the kernel hash table object
  *   key: hash key
+ *   direction: mace_latency_type to hand to mace_push_event()
  */
 #define register_exit(hash_table, key, direction) \
 { \
@@ -72,16 +59,3 @@
     } \
   } \
 }
-
-/*
- * Executes register_exit() for egress table
- */
-#define register_exit_egress(key) \
-  register_exit(egress_hash, key, MACE_LATENCY_EGRESS)
-
-/*
- * Executes register_exit() for ingress table
- */
-#define register_exit_ingress(key) \
-  register_exit(ingress_hash, key, MACE_LATENCY_INGRESS)
-

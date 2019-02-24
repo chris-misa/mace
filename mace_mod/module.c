@@ -6,6 +6,7 @@
 
 #include "module.h"
 
+// Test for ok ipv4 packets
 #ifdef DEBUG
   #define check_ipv4(ip) \
     if (!ip || ip->version != 4) { \
@@ -60,12 +61,17 @@ static DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
 //
 // Egress inner tracepoint
 //
-struct void
+static void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
   if (id == SYSCALL_SENDTO) {
+
     // Assuming user messages starts at beginning of payload
-    register_entry_egress((u64 *)regs->si);
+    // This will probably not be true for layer 4 sockets
+    register_entry(egress_latencies,
+                   egress_latencies_index,
+                   egress_hash,
+                   (u64 *)regs->si);
   }
 }
 
@@ -86,7 +92,7 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
     check_ipv4(ip);
 
     key =*((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
-    register_exit_egress(key);
+    register_exit(egress_hash, key, MACE_LATENCY_EGRESS);
   }
 }
 
@@ -105,7 +111,10 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
     ip = (struct iphdr *)skb->data;
     check_ipv4(ip);
 
-    register_entry_ingress((u64 *)(skb->data + ip->ihl * 4));
+    register_entry(ingress_latencies,
+                   ingress_latencies_index,
+                   ingress_hash,
+                   (u64 *)(skb->data + ip->ihl * 4));
   }
 }
 
@@ -129,7 +138,7 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       check_ipv4(ip);
 
       key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
-      register_exit_ingress(key);
+      register_exit(ingress_hash, key, MACE_LATENCY_INGRESS);
     }
   }
 }
