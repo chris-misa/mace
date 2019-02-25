@@ -43,6 +43,9 @@
 #include <linux/interrupt.h>
 
 #include <linux/hashtable.h>
+#include <linux/types.h>
+#include <asm/atomic.h>
+#include <linux/spinlock.h>
 
 #include "ring_buffer.h"
 #include "sysfs.h"
