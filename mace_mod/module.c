@@ -46,17 +46,36 @@ struct mace_latency {
   int valid;
   u64 key;
   struct hlist_node hash_list;
+  spinlock_t lock;
 };
 
 // Egress latency table
 static struct mace_latency egress_latencies[MACE_LATENCY_TABLE_SIZE];
-static int egress_latencies_index = 0;
+static atomic_t egress_latencies_index = ATOMIC_INIT(0);
 static DEFINE_HASHTABLE(egress_hash, MACE_LATENCY_TABLE_BITS);
 
 // Ingress latency table
 static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
-static int ingress_latencies_index = 0;
+static atomic_t ingress_latencies_index = ATOMIC_INIT(0);
 static DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
+
+
+static void
+mace_latency_init(struct mace_latency *ml)
+{
+  ml->valid = 0;
+  ml->lock = __SPIN_LOCK_UNLOCKED(lock);
+}
+
+static void
+init_mace_tables(void)
+{
+  int i;
+  for (i = 0; i < MACE_LATENCY_TABLE_SIZE; i++) {
+    mace_latency_init(egress_latencies + i);
+    mace_latency_init(ingress_latencies + i);
+  }
+}
 
 //
 // Egress inner tracepoint
@@ -201,6 +220,8 @@ mace_mod_init(void)
   if (ret) {
     return ret;
   }
+
+  init_mace_tables();
 
   // Add initial params to dev sets for now
   mace_add_set(outer_dev, outer_devs);

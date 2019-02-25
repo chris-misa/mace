@@ -23,19 +23,21 @@
 { \
   struct mace_latency *ml; \
   unsigned long long ts = rdtsc(); \
-  ml = table + (index++); \
-  if (index == MACE_LATENCY_TABLE_SIZE) { \
-    index = 0; \
+  unsigned long flags; \
+  ml = table + atomic_inc_return(&index); \
+  if (atomic_read(&index) == MACE_LATENCY_TABLE_SIZE) { \
+    atomic_set(&index, 0); \
   } \
-  \
   if (ml->valid) { \
     hash_del(&ml->hash_list); \
   } \
   \
+  spin_lock_irqsave(&ml->lock, flags); \
   ml->enter = ts; \
   ml->key = *(key_ptr); \
   ml->valid = 1; \
   hash_add(hash_table, &ml->hash_list, ml->key); \
+  spin_unlock_irqrestore(&ml->lock, flags); \
 }
 
 /*
@@ -49,12 +51,17 @@
 { \
   struct mace_latency *ml; \
   unsigned long long dt; \
+  unsigned long flags; \
   hash_for_each_possible(hash_table, ml, hash_list, key) { \
     if (ml && ml->key == (key)) { \
-      dt = rdtsc() - ml->enter; \
-      ml->valid = 0; \
-      hash_del(&ml->hash_list); \
-      mace_push_event(dt, direction); \
+      /* if this entry is locked, it must be in the process of being overwritten */ \
+      if (spin_trylock_irqsave(&ml->lock, flags)) {\
+        dt = rdtsc() - ml->enter; \
+        ml->valid = 0; \
+        hash_del(&ml->hash_list); \
+        spin_unlock_irqrestore(&ml->lock, flags); \
+        mace_push_event(dt, direction); \
+      } \
       break; \
     } \
   } \
