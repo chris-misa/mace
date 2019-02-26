@@ -136,6 +136,7 @@ store_inner_devs(struct kobject *kobj,
   struct net *cur_netns = current->nsproxy->net_ns;
   struct net_device *device;
   int found = 0;
+  int remove = 0;
 
 
   if (kstrtoint(buf, 0, &dev_id) == 0) {
@@ -144,6 +145,9 @@ store_inner_devs(struct kobject *kobj,
       printk(KERN_INFO "Mace: pid %d: loopback device 0 not supported.\n",
           current->pid);
       return count;
+    } else if (dev_id < 0) {
+      dev_id = -dev_id;
+      remove = 1;
     }
 
     // Only allow devices in the current network namespace
@@ -154,16 +158,16 @@ store_inner_devs(struct kobject *kobj,
       }
     }
     if (found) {
-      if (dev_id > 0) {
+      if (remove) {
+        mace_remove_set(dev_id, inner_devs);
+        printk(KERN_INFO "Mace: pid %d removed device id %d\n",
+            current->pid,
+            dev_id);
+      } else {
         mace_add_set(dev_id, inner_devs);
         printk(KERN_INFO "Mace: pid %d added device id %d\n",
             current->pid,
             dev_id);
-      } else {
-        mace_remove_set(-dev_id, inner_devs);
-        printk(KERN_INFO "Mace: pid %d removed device id %d\n",
-            current->pid,
-            -dev_id);
       }
     } else {
       printk(KERN_INFO "Mace: pid %d trying to access invalid device id %d\n",
