@@ -15,6 +15,15 @@
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 
+//
+// Active namespace list struct
+//
+struct mace_ns_list {
+  unsigned long ns_id;
+  struct list_head list;
+};
+
+
 // #define DEBUG
 
 // Syscall numbers. . .waiting for a better day
@@ -28,32 +37,30 @@
 #define mace_set_foreach(bit, set) \
   for_each_set_bit(bit, &(set), sizeof(set))
 
-__always_inline int
-mace_add_ns(unsigned long nsid, struct list_head *list_ptr)
-{
-  struct mace_ns_list *n =
-      (struct mace_ns_list *)kmalloc(sizeof(struct mace_ns_list), GFP_KERNEL);
-  if (!n) {
-    printk(KERN_INFO "Mace: failed to add item to nsid list\n");
-    return 1;
-  } else {
-    list_add(&n->list, list_ptr);
-    return 0;
-  }
+#define mace_add_ns(nsid, list_ptr) \
+{ \
+  struct mace_ns_list *n = \
+      (struct mace_ns_list *)kmalloc(sizeof(struct mace_ns_list), GFP_KERNEL); \
+  if (!n) { \
+    printk(KERN_INFO "Mace: failed to add item to nsid list\n"); \
+  } else { \
+    n->ns_id = nsid; \
+    list_add(&n->list, (list_ptr)); \
+  } \
 }
 
-__always_inline int
-mace_lookup_ns(unsigned long nsid, struct list_head *list_ptr)
-{
-  struct list_head *p;
-  struct mace_ns_list *entry;
-  list_for_each(p, list_ptr) {
-    entry = list_entry(p, struct mace_ns_list, list);
-    if (nsid == entry->nsid) {
-      return 1;
-    }
-  }
-  return 0;
+#define mace_lookup_ns(nsid, list_ptr, result) \
+{ \
+  struct list_head *p; \
+  struct mace_ns_list *n; \
+  list_for_each(p, (list_ptr)) { \
+    n = list_entry(p, struct mace_ns_list, list); \
+    if ((nsid) == n->ns_id) { \
+      *(result) = 1; \
+      break; \
+    } \
+  } \
+  *(result) = 0; \
 }
 
 /*

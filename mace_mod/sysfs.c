@@ -15,6 +15,8 @@
 //
 #define mace_cycles_to_ns(c) (((c) * 1000000) / tsc_khz)
 
+extern struct list_head *mace_active_ns;
+
 //
 // Mace kobj entry
 //
@@ -107,10 +109,11 @@ show_mace_on(struct kobject *kobj,
                 char *buf)
 {
   ssize_t offset = 0;
-  int res;
+  int res = 0;
 
-  res = mace_lookup_ns(current->nsproxy->net_ns->ns.inum,
-                       mace_active_ns);
+  mace_lookup_ns(current->nsproxy->net_ns->ns.inum,
+                 mace_active_ns,
+                 &res);
 
   // Look up this namespace's status and print report
   offset += snprintf(buf + offset,

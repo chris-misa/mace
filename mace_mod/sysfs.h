@@ -20,11 +20,10 @@
 #include <linux/net_namespace.h>
 
 #include "ring_buffer.h"
-#include "module.h"
+#include "macros.h"
 
 int mace_init_sysfs(void);
 void mace_free_sysfs(void);
 
-extern struct list_head *mace_active_ns;
 
 #endif
