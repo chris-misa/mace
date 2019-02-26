@@ -17,6 +17,8 @@
 #include <linux/netdevice.h>
 #include <linux/net_namespace.h>
 
+#include <linux/idr.h>
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
 MODULE_DESCRIPTION("Test of sysfs file system");
@@ -37,8 +39,9 @@ static ssize_t foo_show(struct kobject *kobj,
     if (offset > PAGE_SIZE) {
       break;
     }
-    offset += sprintf(buf + offset, "%s (%d)\n",
-                      device->name, device->ifindex);
+    offset += sprintf(buf + offset, "%s (%d) %u \n",
+                      device->name, device->ifindex, /* *((int*)idr_find(&cur_netns->netns_ids, 0))*/
+                      cur_netns->ns.inum);
   }
 
   return offset;
@@ -50,6 +53,7 @@ static ssize_t foo_store(struct kobject *kobj,
                          size_t count)
 {
   sscanf(buf, "%du", &foo);
+  printk(KERN_INFO "foo is %du\n", foo);
   return count;
 }
 

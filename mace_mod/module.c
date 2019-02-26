@@ -20,11 +20,29 @@
     }
 #endif
 
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
+MODULE_DESCRIPTION("Test of sysfs file system");
+
+int __init mace_mod_init(void);
+void __exit mace_mod_exit(void);
+module_init(mace_mod_init);
+module_exit(mace_mod_exit);
+
+// Param: Outer device id
+static int outer_dev = -1;
+module_param(outer_dev, int, 0);
+MODULE_PARM_DESC(outer_dev, "Device id of the outer device");
+
 //
-// Network device sets
+// Network device set
 //
-unsigned long inner_devs = 0;
 static unsigned long outer_devs = 0;
+
+//
+// Active namespace list
+//
+struct list_head *mace_active_ns;
 
 //
 // Tracepoint pointers kept for cleanup
@@ -196,6 +214,7 @@ mace_mod_init(void)
   net_dev_start_xmit_tracepoint = NULL;
   napi_gro_receive_entry_tracepoint = NULL;
   sys_exit_tracepoint = NULL;
+  mace_active_ns = NULL;
 
   // Check for required parameters
   if (outer_dev < 0) {
@@ -208,7 +227,7 @@ mace_mod_init(void)
   }
 
   init_mace_tables();
-
+ 
   // Add initial params to dev sets for now
   mace_add_set(outer_dev, outer_devs);
 
