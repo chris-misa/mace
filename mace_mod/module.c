@@ -42,6 +42,7 @@ static struct tracepoint *sys_exit_tracepoint;
 
 struct mace_latency {
   unsigned long long enter;
+  int valid;
   u64 key;
   spinlock_t lock;
 };
@@ -55,6 +56,7 @@ static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
 static void
 mace_latency_init(struct mace_latency *ml)
 {
+  ml->valid = 0;
   ml->lock = __SPIN_LOCK_UNLOCKED(lock);
 }
 

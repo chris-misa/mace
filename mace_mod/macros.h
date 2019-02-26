@@ -24,6 +24,7 @@
   spin_lock_irqsave(&table[index].lock, flags); \
   table[index].enter = rdtsc(); \
   table[index].key = (key); \
+  table[index].valid = 1; \
   spin_unlock_irqrestore(&table[index].lock, flags); \
 }
 
@@ -41,8 +42,9 @@
   unsigned long flags; \
   \
   spin_lock_irqsave(&table[index].lock, flags); \
-  if (table[index].key == (key)) { \
+  if (table[index].key == (key) && table[index].valid) { \
     dt = rdtsc() - table[index].enter; \
+    table[index].valid = 0; \
   } \
   spin_unlock_irqrestore(&table[index].lock, flags); \
   \
