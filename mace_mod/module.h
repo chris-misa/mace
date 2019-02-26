@@ -47,17 +47,10 @@
 #include <asm/atomic.h>
 
 
-//
-// Active namespace list
-//
-struct mace_ns_list {
-  unsigned long nsid;
-  struct list_head list;
-};
-
 #include "ring_buffer.h"
 #include "sysfs.h"
 #include "macros.h"
+
 
 
 #endif
