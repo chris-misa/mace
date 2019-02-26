@@ -68,17 +68,8 @@ static int outer_dev = -1;
 module_param(outer_dev, int, 0);
 MODULE_PARM_DESC(outer_dev, "Device id of the outer device");
 
-// Param: Inner device id (for now. . .)
-static int inner_dev = -1;
-module_param(inner_dev, int, 0);
-MODULE_PARM_DESC(inner_dev, "Device id of inner devie");
-
 // Syscall numbers. . .waiting for a better day
 #define SYSCALL_SENDTO 44
 #define SYSCALL_RECVMSG 47
-
-
-unsigned long inner_devs = 0;
-static unsigned long outer_devs = 0;
 
 #endif

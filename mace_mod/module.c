@@ -21,6 +21,12 @@
 #endif
 
 //
+// Network device sets
+//
+unsigned long inner_devs = 0;
+static unsigned long outer_devs = 0;
+
+//
 // Tracepoint pointers kept for cleanup
 //
 static struct tracepoint *sys_enter_tracepoint;
@@ -197,11 +203,6 @@ mace_mod_init(void)
     ret = -1;
   }
 
-  if (inner_dev < 0) {
-    printk(KERN_INFO "Mace: must set inner_dev=<inner device id>\n");
-    ret = -1;
-  }
-
   if (ret) {
     return ret;
   }
@@ -210,7 +211,6 @@ mace_mod_init(void)
 
   // Add initial params to dev sets for now
   mace_add_set(outer_dev, outer_devs);
-  mace_add_set(inner_dev, inner_devs);
 
   // Set tracepoints
   for_each_kernel_tracepoint(test_and_set_traceprobe, NULL);
