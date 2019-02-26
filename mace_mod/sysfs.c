@@ -140,6 +140,12 @@ store_inner_devs(struct kobject *kobj,
 
   if (kstrtoint(buf, 0, &dev_id) == 0) {
 
+    if (dev_id == 0) {
+      printk(KERN_INFO "Mace: pid %d: loopback device 0 not supported.\n",
+          current->pid);
+      return count;
+    }
+
     // Only allow devices in the current network namespace
     list_for_each_entry(device, &cur_netns->dev_base_head, dev_list) {
       if (dev_id == device->ifindex) {
@@ -148,12 +154,19 @@ store_inner_devs(struct kobject *kobj,
       }
     }
     if (found) {
-      mace_add_set(dev_id, inner_devs);
-      printk(KERN_INFO "Mace: pid %d added device id %d\n",
-        current->pid,
-        dev_id);
+      if (dev_id > 0) {
+        mace_add_set(dev_id, inner_devs);
+        printk(KERN_INFO "Mace: pid %d added device id %d\n",
+            current->pid,
+            dev_id);
+      } else {
+        mace_remove_set(-dev_id, inner_devs);
+        printk(KERN_INFO "Mace: pid %d removed device id %d\n",
+            current->pid,
+            -dev_id);
+      }
     } else {
-      printk(KERN_INFO "Mace: pid %d trying to watch invalid device id %d\n",
+      printk(KERN_INFO "Mace: pid %d trying to access invalid device id %d\n",
         current->pid,
         dev_id);
     }
