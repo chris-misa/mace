@@ -142,7 +142,7 @@ store_inner_devs(struct kobject *kobj,
   if (kstrtoint(buf, 0, &dev_id) == 0) {
 
     if (dev_id == 0) {
-      printk(KERN_INFO "Mace: pid %d: loopback device 0 not supported.\n",
+      printk(KERN_INFO "Mace: pid %d: invalid device id.\n",
           current->pid);
       return count;
     } else if (dev_id < 0) {
