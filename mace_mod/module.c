@@ -42,28 +42,19 @@ static struct tracepoint *sys_exit_tracepoint;
 
 struct mace_latency {
   unsigned long long enter;
-  struct sk_buff *skb;
-  int valid;
   u64 key;
-  struct hlist_node hash_list;
   spinlock_t lock;
 };
 
 // Egress latency table
 static struct mace_latency egress_latencies[MACE_LATENCY_TABLE_SIZE];
-static atomic_t egress_latencies_index = ATOMIC_INIT(0);
-static DEFINE_HASHTABLE(egress_hash, MACE_LATENCY_TABLE_BITS);
 
 // Ingress latency table
 static struct mace_latency ingress_latencies[MACE_LATENCY_TABLE_SIZE];
-static atomic_t ingress_latencies_index = ATOMIC_INIT(0);
-static DEFINE_HASHTABLE(ingress_hash, MACE_LATENCY_TABLE_BITS);
-
 
 static void
 mace_latency_init(struct mace_latency *ml)
 {
-  ml->valid = 0;
   ml->lock = __SPIN_LOCK_UNLOCKED(lock);
 }
 
@@ -83,14 +74,12 @@ init_mace_tables(void)
 static void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
+  u64 key;
   if (id == SYSCALL_SENDTO) {
-
     // Assuming user messages starts at beginning of payload
     // This will probably not be true for layer 4 sockets
-    register_entry(egress_latencies,
-                   egress_latencies_index,
-                   egress_hash,
-                   (u64 *)regs->si);
+    key = *((u64 *)regs->si);
+    register_entry(egress_latencies, key);
   }
 }
 
@@ -111,7 +100,7 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
     check_ipv4(ip);
 
     key =*((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
-    register_exit(egress_hash, key, MACE_LATENCY_EGRESS);
+    register_exit(egress_latencies, key, MACE_LATENCY_EGRESS);
   }
 }
 
@@ -122,6 +111,7 @@ static void
 probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 {
   struct iphdr *ip;
+  u64 key;
 
   // Filter for outer device
   if (skb->dev && mace_in_set(skb->dev->ifindex, outer_devs)) {
@@ -130,10 +120,9 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
     ip = (struct iphdr *)skb->data;
     check_ipv4(ip);
 
-    register_entry(ingress_latencies,
-                   ingress_latencies_index,
-                   ingress_hash,
-                   (u64 *)(skb->data + ip->ihl * 4));
+    key = *((u64 *)(skb->data + ip->ihl * 4));
+
+    register_entry(ingress_latencies, key);
   }
 }
 
@@ -157,7 +146,7 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       check_ipv4(ip);
 
       key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
-      register_exit(ingress_hash, key, MACE_LATENCY_INGRESS);
+      register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS);
     }
   }
 }
