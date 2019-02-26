@@ -42,32 +42,22 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
-#include <linux/hashtable.h>
+#include <linux/list.h>
 #include <linux/types.h>
 #include <asm/atomic.h>
+
+
+//
+// Active namespace list
+//
+struct mace_ns_list {
+  unsigned long nsid;
+  struct list_head list;
+};
 
 #include "ring_buffer.h"
 #include "sysfs.h"
 #include "macros.h"
 
-// #define DEBUG
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
-MODULE_DESCRIPTION("Test of sysfs file system");
-
-int __init mace_mod_init(void);
-void __exit mace_mod_exit(void);
-module_init(mace_mod_init);
-module_exit(mace_mod_exit);
-
-// Param: Outer device id
-static int outer_dev = -1;
-module_param(outer_dev, int, 0);
-MODULE_PARM_DESC(outer_dev, "Device id of the outer device");
-
-// Syscall numbers. . .waiting for a better day
-#define SYSCALL_SENDTO 44
-#define SYSCALL_RECVMSG 47
 
 #endif

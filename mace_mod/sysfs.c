@@ -25,14 +25,14 @@ static struct kobject *mace_kobj;
 //
 static ssize_t show_latencies(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
 static ssize_t store_latencies(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
-static struct kobj_attribute mace_latencies = __ATTR(latencies_ns, 0660, show_latencies, store_latencies);
+static struct kobj_attribute mace_latencies_ns_file = __ATTR(latencies_ns, 0660, show_latencies, store_latencies);
 
 //
-// Inner devices file
+// mace_on file
 //
-static ssize_t show_inner_devs(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
-static ssize_t store_inner_devs(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
-static struct kobj_attribute mace_inner_devs = __ATTR(inner_devices, 0660, show_inner_devs, store_inner_devs);
+static ssize_t show_mace_on(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
+static ssize_t store_mace_on(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
+static struct kobj_attribute mace_on_file = __ATTR(mace_on, 0660, show_mace_on, store_mace_on);
 
 int
 mace_init_sysfs(void)
@@ -45,14 +45,14 @@ mace_init_sysfs(void)
     return -ENOMEM;
   }
 
-  err = sysfs_create_file(mace_kobj, &mace_latencies.attr);
+  err = sysfs_create_file(mace_kobj, &mace_latencies_ns_file.attr);
   if (err) {
     printk(KERN_INFO "Mace: Failed to create latencies sysfs file.\n");
   }
 
-  err = sysfs_create_file(mace_kobj, &mace_inner_devs.attr);
+  err = sysfs_create_file(mace_kobj, &mace_on_file.attr);
   if (err) {
-    printk(KERN_INFO "Mace: Failded to create inner_devices sysfs file.\n");
+    printk(KERN_INFO "Mace: Failded to create mace_on sysfs file.\n");
   }
   return err;
 }
@@ -98,62 +98,44 @@ store_latencies(struct kobject *kobj,
 }
 
 //
-// inner_devices implementation
+// mace_on implementation
 //
 
 static ssize_t
-show_inner_devs(struct kobject *kobj,
+show_mace_on(struct kobject *kobj,
                 struct kobj_attribute *attr,
                 char *buf)
 {
   ssize_t offset = 0;
-  unsigned long i;
+  int res;
 
-  mace_set_foreach(i, inner_devs) {
-    if (mace_in_set(i, inner_devs)) {
-      offset += snprintf(buf + offset,
-                         PAGE_SIZE - offset,
-                         "%lu\n",
-                         i);
-    }
-  }
+  res = mace_lookup_ns(current->nsproxy->net_ns->ns.inum,
+                       mace_active_ns);
+
+  // Look up this namespace's status and print report
+  offset += snprintf(buf + offset,
+                     PAGE_SIZE - offset,
+                     "%d\n",
+                     res);
   return offset;
 }
 
 static ssize_t
-store_inner_devs(struct kobject *kobj,
+store_mace_on(struct kobject *kobj,
                  struct kobj_attribute *attr,
                  const char *buf,
                  size_t count)
 {
-  int dev_id;
-  struct net *cur_netns = current->nsproxy->net_ns;
-  struct net_device *device;
+  int req;
 
-  if (kstrtoint(buf, 0, &dev_id) == 0) {
-
-    if (dev_id == 0) {
-      printk(KERN_INFO "Mace: pid %d: invalid device id.\n",
-          current->pid);
-      return count;
-
-    // Negative numbers to remove
-    } else if (dev_id < 0) {
-      dev_id = -dev_id;
-      mace_remove_set(dev_id, inner_devs);
-      printk(KERN_INFO "Mace: pid %d removed device id %d\n",
-          current->pid,
-          dev_id);
+  if (kstrtoint(buf, 0, &req) == 0) {
+    // Set mace status for this namespace
+    if (req == 0) {
+      // Remove
     } else {
-      mace_add_set(dev_id, inner_devs);
-      printk(KERN_INFO "Mace: pid %d added device id %d\n",
-          current->pid,
-          dev_id);
+      mace_add_ns(current->nsproxy->net_ns->ns.inum,
+                  mace_active_ns);
     }
-  } else {
-    printk(KERN_INFO "Mace: pid %d trying to access invalid device id %d\n",
-      current->pid,
-      dev_id);
   }
   return count;
 }

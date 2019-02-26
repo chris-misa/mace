@@ -8,9 +8,18 @@
 // 2019, Chris Misa
 //
 
+#ifndef MACE_MACROS_H
+#define MACE_MACROS_H
+
 #include <asm/bitops.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
+
+// #define DEBUG
+
+// Syscall numbers. . .waiting for a better day
+#define SYSCALL_SENDTO 44
+#define SYSCALL_RECVMSG 47
 
 // Bitmaps to keep track of which device ids to listen on
 #define mace_in_set(id, set) test_bit(id, &(set))
@@ -18,6 +27,34 @@
 #define mace_remove_set(id, set) clear_bit(id, &(set))
 #define mace_set_foreach(bit, set) \
   for_each_set_bit(bit, &(set), sizeof(set))
+
+__always_inline int
+mace_add_ns(unsigned long nsid, struct list_head *list_ptr)
+{
+  struct mace_ns_list *n =
+      (struct mace_ns_list *)kmalloc(sizeof(struct mace_ns_list), GFP_KERNEL);
+  if (!n) {
+    printk(KERN_INFO "Mace: failed to add item to nsid list\n");
+    return 1;
+  } else {
+    list_add(&n->list, list_ptr);
+    return 0;
+  }
+}
+
+__always_inline int
+mace_lookup_ns(unsigned long nsid, struct list_head *list_ptr)
+{
+  struct list_head *p;
+  struct mace_ns_list *entry;
+  list_for_each(p, list_ptr) {
+    entry = list_entry(p, struct mace_ns_list, list);
+    if (nsid == entry->nsid) {
+      return 1;
+    }
+  }
+  return 0;
+}
 
 /*
  * Register entry of packet into latency segment.
@@ -62,3 +99,7 @@
     mace_push_event(dt, direction); \
   } \
 }
+
+
+
+#endif
