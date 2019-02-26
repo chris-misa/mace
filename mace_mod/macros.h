@@ -8,10 +8,16 @@
 // 2019, Chris Misa
 //
 
+#include <asm/bitops.h>
+#include <linux/bitops.h>
+#include <linux/spinlock.h>
+
 // Bitmaps to keep track of which device ids to listen on
 #define mace_in_set(id, set) test_bit(id, &(set))
 #define mace_add_set(id, set) set_bit(id, &(set))
 #define mace_remove_set(id, set) clear_bit(id, &(set))
+#define mace_set_foreach(bit, set) \
+  for_each_set_bit(bit, &(set), sizeof(set))
 
 /*
  * Register entry of packet into latency segment.
