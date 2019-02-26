@@ -15,5 +15,6 @@ For example, the first 8 bytes for the following protocol headers contain:
 
 ## Synchronization
 
-There are essentially three queues: two keeping track of packets between tracepoints and one holding the latency reports to transmit to userspace.
+Intra-kernel egress and ingress tables are protected by per-bin spin locks.
+
 

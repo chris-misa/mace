@@ -20,15 +20,9 @@
     }
 #endif
 
-
-// Bitmaps to keep track of which device ids to listen on
-#define mace_in_set(id, set) ((1 << (id)) & (set))
-#define mace_add_set(id, set) (set) |= 1 << (id)
-
-static unsigned long inner_devs = 0;
-static unsigned long outer_devs = 0;
-
+//
 // Tracepoint pointers kept for cleanup
+//
 static struct tracepoint *sys_enter_tracepoint;
 static struct tracepoint *net_dev_start_xmit_tracepoint;
 static struct tracepoint *napi_gro_receive_entry_tracepoint;
