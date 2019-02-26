@@ -46,6 +46,7 @@
 #include <linux/types.h>
 #include <asm/atomic.h>
 #include <linux/spinlock.h>
+#include <asm/bitops.h>
 
 #include "ring_buffer.h"
 #include "sysfs.h"
@@ -75,5 +76,9 @@ MODULE_PARM_DESC(inner_dev, "Device id of inner devie");
 // Syscall numbers. . .waiting for a better day
 #define SYSCALL_SENDTO 44
 #define SYSCALL_RECVMSG 47
+
+
+unsigned long inner_devs = 0;
+static unsigned long outer_devs = 0;
 
 #endif

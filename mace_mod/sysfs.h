@@ -16,9 +16,15 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 
+#include <linux/netdevice.h>
+#include <linux/net_namespace.h>
+
 #include "ring_buffer.h"
+#include "macros.h"
 
 int mace_init_sysfs(void);
 void mace_free_sysfs(void);
+
+extern unsigned long inner_devs;
 
 #endif
