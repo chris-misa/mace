@@ -96,13 +96,21 @@ static void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
   u64 key;
+  unsigned long ns_id;
+  int res;
+
   if (id == SYSCALL_SENDTO) {
-    // Assuming user messages starts at beginning of payload
-    // This will probably not be true for layer 4 sockets
-    key = *((u64 *)regs->si);
-    register_entry(egress_latencies,
-                   key,
-                   current->nsproxy->net_ns->ns.inum);
+    
+    // Filter by net namespace id
+    ns_id = current->nsproxy->net_ns->ns.inum;
+    mace_lookup_ns(ns_id, mace_active_ns, &res);
+    if (res) {
+
+      // Assuming user messages starts at beginning of payload
+      // This will probably not be true for layer 4 sockets
+      key = *((u64 *)regs->si);
+      register_entry(egress_latencies, key, ns_id);
+    }
   }
 }
 
@@ -155,24 +163,31 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 static void
 probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
+  unsigned long ns_id;
+  int res;
   struct user_msghdr *msg;
   struct iphdr *ip;
   u64 key;
 
+  // Filter by syscall number
   if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
-    msg = (struct user_msghdr *)regs->si;
-    if (msg) {
 
-      // Raw socket gives us the ip header,
-      // probably will need a switch here based on socket type.
-      ip = (struct iphdr *)msg->msg_iov->iov_base;
-      check_ipv4(ip);
+    // Filter by net namespace id
+    ns_id = current->nsproxy->net_ns->ns.inum;
+    mace_lookup_ns(ns_id, mace_active_ns, &res);
+    if (res) {
 
-      key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
-      register_exit(ingress_latencies,
-                    key,
-                    MACE_LATENCY_INGRESS,
-                    current->nsproxy->net_ns->ns.inum);
+      msg = (struct user_msghdr *)regs->si;
+      if (msg) {
+
+        // Raw socket gives us the ip header,
+        // probably will need a switch here based on socket type.
+        ip = (struct iphdr *)msg->msg_iov->iov_base;
+        check_ipv4(ip);
+
+        key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
+        register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
+      }
     }
   }
 }
