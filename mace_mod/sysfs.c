@@ -80,7 +80,8 @@ show_latencies(struct kobject *kobj,
   while ((lat = mace_pop_event()) != NULL && offset < PAGE_SIZE) {
     offset += snprintf(buf + offset,
                        PAGE_SIZE - offset, 
-                       "%s: %llu\n",
+                       "[%lu] %s: %llu\n",
+                       lat->ns_id,
                        mace_latency_type_str(lat->type),
                        mace_cycles_to_ns(lat->latency));
   }
