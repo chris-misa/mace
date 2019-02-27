@@ -17,11 +17,25 @@ Assuming the proper kernel headers are where they should be, just
 # insmod mace.ko
 ```
 
-Make sure sysfs is mounted. (Here we assume it is mounted at `/sys`).
-The MACE interface is found at `/sys/kernel/mace/`. Each available file is described below.
+## Mace sysfs Interface
+
+
+The MACE interface is found at `/sys/kernel/mace/` assuming sysfs is mounted at `/sys`.
+The knobs are described below.
+
+Since containers tend to have sysfs mounted read-only, you might need to
+bind mount the mace control directory into your container. Since mace
+is actively namespace aware, calls from the container to these knobs will
+still be interpreted relative to the container's network namespace.
+
+* `mace_on`
+
+Writing a non-zero value to this file enables mace for the current network
+namespace. Writing a zero disables mace. Reading shows status of current
+network namespace.
 
 * `latencies_ns`
 
 Reading from here shows all ingress and egress latencies found in the buffer.
-Writting to here clears the latency buffer.
+Writting any value to here clears the latency buffer.
 
