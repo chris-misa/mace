@@ -42,7 +42,7 @@ static unsigned long outer_devs = 0;
 //
 // Active namespace list
 //
-struct list_head *mace_active_ns;
+struct list_head mace_active_ns;
 
 //
 // Tracepoint pointers kept for cleanup
@@ -214,7 +214,7 @@ mace_mod_init(void)
   net_dev_start_xmit_tracepoint = NULL;
   napi_gro_receive_entry_tracepoint = NULL;
   sys_exit_tracepoint = NULL;
-  mace_active_ns = NULL;
+  INIT_LIST_HEAD(&mace_active_ns);
 
   // Check for required parameters
   if (outer_dev < 0) {
