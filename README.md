@@ -14,7 +14,7 @@ Assuming the proper kernel headers are where they should be, just
 ## Run
 
 ```
-# insmod mace.ko
+# insmod ./mace.ko
 ```
 
 ## Mace sysfs Interface
@@ -27,6 +27,8 @@ Since containers tend to have sysfs mounted read-only, you might need to
 bind mount the mace control directory into your container. Since mace
 is actively namespace aware, calls from the container to these knobs will
 still be interpreted relative to the container's network namespace.
+
+### Knobs
 
 * `mace_on`
 
