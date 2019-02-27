@@ -60,6 +60,7 @@ static struct tracepoint *sys_exit_tracepoint;
 
 struct mace_latency {
   unsigned long long enter;
+  unsigned long ns_id;
   int valid;
   u64 key;
   spinlock_t lock;
@@ -99,7 +100,9 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
     // Assuming user messages starts at beginning of payload
     // This will probably not be true for layer 4 sockets
     key = *((u64 *)regs->si);
-    register_entry(egress_latencies, key);
+    register_entry(egress_latencies,
+                   key,
+                   current->nsproxy->net_ns->ns.inum);
   }
 }
 
@@ -120,7 +123,7 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
     check_ipv4(ip);
 
     key =*((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
-    register_exit(egress_latencies, key, MACE_LATENCY_EGRESS);
+    register_exit(egress_latencies, key, MACE_LATENCY_EGRESS, 0);
   }
 }
 
@@ -142,7 +145,7 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 
     key = *((u64 *)(skb->data + ip->ihl * 4));
 
-    register_entry(ingress_latencies, key);
+    register_entry(ingress_latencies, key, 0);
   }
 }
 
@@ -166,7 +169,10 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       check_ipv4(ip);
 
       key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
-      register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS);
+      register_exit(ingress_latencies,
+                    key,
+                    MACE_LATENCY_INGRESS,
+                    current->nsproxy->net_ns->ns.inum);
     }
   }
 }

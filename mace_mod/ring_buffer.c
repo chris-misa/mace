@@ -28,10 +28,13 @@ mace_latency_type_str(mace_latency_type type)
 }
 
 void
-mace_push_event(unsigned long long latency, mace_latency_type type)
+mace_push_event(unsigned long long latency,
+                mace_latency_type type,
+                unsigned long ns_id)
 {
   event_queue[event_write_head].latency = latency;
   event_queue[event_write_head].type = type;
+  event_queue[event_write_head].ns_id = ns_id;
   event_write_head = (event_write_head + 1) % MACE_EVENT_QUEUE_SIZE;
 }
 
