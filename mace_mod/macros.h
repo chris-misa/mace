@@ -55,6 +55,7 @@ struct mace_ns_list {
 { \
   struct list_head *p; \
   struct mace_ns_list *n; \
+  *(result) = 0; \
   list_for_each(p, &(target_list)) { \
     n = list_entry(p, struct mace_ns_list, list); \
     if ((nsid) == n->ns_id) { \
@@ -62,7 +63,6 @@ struct mace_ns_list {
       break; \
     } \
   } \
-  *(result) = 0; \
 }
 
 /*

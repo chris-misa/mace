@@ -130,14 +130,19 @@ store_mace_on(struct kobject *kobj,
                  size_t count)
 {
   int req;
+  unsigned long nsid;
 
   if (kstrtoint(buf, 0, &req) == 0) {
+
     // Set mace status for this namespace
+    nsid = current->nsproxy->net_ns->ns.inum;
+
     if (req == 0) {
-      // Remove
+      printk(KERN_INFO "Mace: remove nsid unimplemented\n");
+
     } else {
-      mace_add_ns(current->nsproxy->net_ns->ns.inum,
-                  mace_active_ns);
+      mace_add_ns(nsid, mace_active_ns);
+      printk(KERN_INFO "Mace: added nsid: %lu\n", nsid);
     }
   }
   return count;
