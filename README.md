@@ -1,12 +1,41 @@
-# Mace
+# MACE
 
-## Direction Notes
+MACE (Measure the Added Container Expense) is a kernel network stack latency monitor geared towards measuring container networking overheads.
+By hooking into common trace-events, MACE is able to dynamically report network stack latency on a per-packet basis.
 
-1) Rewrite paper using simple module for just ping for HotOS
-2) Generalize later
+## Install
 
-## Directories
+Assuming the proper kernel headers are where they should be, just
 
-`test_trace`: small test module basically just for practise.
+```
+# make
+```
 
-`mod`:  development of main mace kernel module.
+## Run
+
+```
+# insmod mace.ko
+```
+
+## Mace sysfs Interface
+
+
+The MACE interface is found at `/sys/kernel/mace/` assuming sysfs is mounted at `/sys`.
+The knobs are described below.
+
+Since containers tend to have sysfs mounted read-only, you might need to
+bind mount the mace control directory into your container. Since mace
+is actively namespace aware, calls from the container to these knobs will
+still be interpreted relative to the container's network namespace.
+
+* `mace_on`
+
+Writing a non-zero value to this file enables mace for the current network
+namespace. Writing a zero disables mace. Reading shows status of current
+network namespace.
+
+* `latencies_ns`
+
+Reading from here shows all ingress and egress latencies found in the buffer.
+Writting any value to here clears the latency buffer.
+
