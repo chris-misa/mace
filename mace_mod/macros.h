@@ -14,6 +14,7 @@
 #include <asm/bitops.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
+#include <linux/list.h>
 
 //
 // Active namespace list struct
@@ -37,23 +38,24 @@ struct mace_ns_list {
 #define mace_set_foreach(bit, set) \
   for_each_set_bit(bit, &(set), sizeof(set))
 
-#define mace_add_ns(nsid, list_ptr) \
+
+#define mace_add_ns(nsid, target_list) \
 { \
   struct mace_ns_list *n = \
       (struct mace_ns_list *)kmalloc(sizeof(struct mace_ns_list), GFP_KERNEL); \
   if (!n) { \
     printk(KERN_INFO "Mace: failed to add item to nsid list\n"); \
   } else { \
-    n->ns_id = nsid; \
-    list_add(&n->list, (list_ptr)); \
+    n->ns_id = (nsid); \
+    list_add(&n->list, &(target_list)); \
   } \
 }
 
-#define mace_lookup_ns(nsid, list_ptr, result) \
+#define mace_lookup_ns(nsid, target_list, result) \
 { \
   struct list_head *p; \
   struct mace_ns_list *n; \
-  list_for_each(p, (list_ptr)) { \
+  list_for_each(p, &(target_list)) { \
     n = list_entry(p, struct mace_ns_list, list); \
     if ((nsid) == n->ns_id) { \
       *(result) = 1; \

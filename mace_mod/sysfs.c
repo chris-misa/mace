@@ -15,7 +15,7 @@
 //
 #define mace_cycles_to_ns(c) (((c) * 1000000) / tsc_khz)
 
-extern struct list_head *mace_active_ns;
+extern struct list_head mace_active_ns;
 
 //
 // Mace kobj entry
