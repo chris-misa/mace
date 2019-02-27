@@ -138,7 +138,8 @@ store_mace_on(struct kobject *kobj,
     nsid = current->nsproxy->net_ns->ns.inum;
 
     if (req == 0) {
-      printk(KERN_INFO "Mace: remove nsid unimplemented\n");
+      mace_del_ns(nsid, mace_active_ns);
+      printk(KERN_INFO "Mace: removed nsid: %lu\n", nsid);
 
     } else {
       mace_add_ns(nsid, mace_active_ns);

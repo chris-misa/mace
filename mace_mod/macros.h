@@ -65,6 +65,33 @@ struct mace_ns_list {
   } \
 }
 
+#define mace_del_ns(nsid, target_list) \
+{ \
+  struct list_head *p; \
+  struct list_head *q; \
+  struct mace_ns_list *n; \
+  list_for_each_safe(p, q, &(target_list)) { \
+    n = list_entry(p, struct mace_ns_list, list); \
+    if (n->ns_id == nsid) { \
+      list_del(p); \
+      kfree(n); \
+      break; \
+    } \
+  } \
+}
+
+#define mace_del_all_ns(target_list) \
+{ \
+  struct list_head *p; \
+  struct list_head *q; \
+  struct mace_ns_list *n; \
+  list_for_each_safe(p, q, &(target_list)) { \
+    n = list_entry(p, struct mace_ns_list, list); \
+    list_del(p); \
+    kfree(n); \
+  } \
+}
+
 /*
  * Register entry of packet into latency segment.
  *
