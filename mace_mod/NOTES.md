@@ -1,6 +1,7 @@
 # Implementation Notes
 
 The general implementation philosophy is 'as light as possible.'
+To find out about current network namespace ids and such from userspace use `lsns -t net` or docker-specific options: /var/run/docker/netns/...
 
 ## Correlation
 

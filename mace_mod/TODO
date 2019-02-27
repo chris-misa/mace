@@ -1,0 +1,11 @@
+
+Synchronization Issues:
+
+  between intra-kernal tracking and userspace ring buffer.
+
+Separation of to userspace ring buffer by namespace (mainly to allow for independent clearing).
+Maybe a case for using struct idr?
+
+Add latencies pipe (blocking reads) file to sysfs.
+
+Develop stress tests. . .
