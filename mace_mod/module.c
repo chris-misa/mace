@@ -268,6 +268,9 @@ mace_mod_exit(void)
   // Cleanup sysfs entries
   mace_free_sysfs();
 
+  // Free active entries
+  mace_del_all_ns(mace_active_ns);
+
   printk(KERN_INFO "Mace: stopped.\n");
 }
 
