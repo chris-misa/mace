@@ -75,8 +75,20 @@ show_latencies(struct kobject *kobj,
                char *buf)
 {
   ssize_t offset = 0;
-  struct mace_latency_event *lat;
+  int i;
+  struct mace_ring_buffer *ring_buf = mace_get_buf();
+  struct mace_latency_event *lat = ring_buf->queue;
+
+  for (i = 0; i < MACE_EVENT_QUEUE_SIZE; i++, lat++) {
+    offset += snprintf(buf + offset,
+                       PAGE_SIZE - offset, 
+                       "[%lu] %s: %llu\n",
+                       lat->ns_id,
+                       mace_latency_type_str(lat->type),
+                       mace_cycles_to_ns(lat->latency));
+  }
   
+/*
   while ((lat = mace_pop_event()) != NULL && offset < PAGE_SIZE) {
     offset += snprintf(buf + offset,
                        PAGE_SIZE - offset, 
@@ -85,6 +97,7 @@ show_latencies(struct kobject *kobj,
                        mace_latency_type_str(lat->type),
                        mace_cycles_to_ns(lat->latency));
   }
+*/
   return offset;
 }
 
