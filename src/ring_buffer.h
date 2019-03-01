@@ -19,8 +19,9 @@ typedef enum {
 
 struct mace_latency_event {
   unsigned long long latency;
-  unsigned long ns_id;
+  unsigned long long ts;
   mace_latency_type type;
+  unsigned long ns_id;
 };
 
 #define MACE_EVENT_QUEUE_BITS 8 // Must be less than sizeof(atomic_t) * 8
@@ -36,7 +37,8 @@ struct mace_ring_buffer {
 struct mace_ring_buffer * mace_get_buf(void);
 void mace_push_event(unsigned long long latency,
                      mace_latency_type type,
-                     unsigned long ns_id);
+                     unsigned long ns_id,
+                     unsigned long long ts);
 struct mace_latency_event * mace_pop_event(void);
 void mace_buffer_clear(void);
 char * mace_latency_type_str(mace_latency_type type);

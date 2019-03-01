@@ -76,24 +76,26 @@ show_latencies(struct kobject *kobj,
 {
   ssize_t offset = 0;
   int i;
-  struct mace_ring_buffer *ring_buf = mace_get_buf();
-  struct mace_latency_event *lat = ring_buf->queue;
+  struct mace_latency_event *lat = mace_get_buf()->queue;
   char line_buf[128];
   ssize_t line_len;
 
   for (i = 0; i < MACE_EVENT_QUEUE_SIZE; i++, lat++) {
     
-    line_len = snprintf(line_buf,
-                        128,
-                        "[%lu] %s: %llu\n",
-                        lat->ns_id,
-                        mace_latency_type_str(lat->type),
-                        mace_cycles_to_ns(lat->latency));
-    if (offset + line_len + 1 < PAGE_SIZE) {
-      memcpy(buf + offset, line_buf, line_len);
-      offset += line_len;
-    } else {
-      break;
+    if (lat->ns_id == current->nsproxy->net_ns->ns.inum) {
+
+      line_len = snprintf(line_buf,
+                          128,
+                          "[%llu] %s: %llu\n",
+                          mace_cycles_to_ns(lat->ts),
+                          mace_latency_type_str(lat->type),
+                          mace_cycles_to_ns(lat->latency));
+      if (offset + line_len + 1 < PAGE_SIZE) {
+        memcpy(buf + offset, line_buf, line_len);
+        offset += line_len;
+      } else {
+        break;
+      }
     }
   }
   buf[offset] = '\0';
@@ -107,8 +109,15 @@ store_latencies(struct kobject *kobj,
                 const char *buf,
                 size_t count)
 {
+  int i;
+  struct mace_latency_event *lat = mace_get_buf()->queue;
+
   if (count) {
-    mace_buffer_clear();
+    for (i = 0; i < MACE_EVENT_QUEUE_SIZE; i++, lat++) {
+      if (lat->ns_id == current->nsproxy->net_ns->ns.inum) {
+        lat->ns_id = 0;
+      }
+    }
   }
   return count;
 }

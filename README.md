@@ -38,6 +38,7 @@ network namespace.
 
 * `latencies_ns`
 
-Reading from here shows all ingress and egress latencies found in the buffer.
-Writting any value to here clears the latency buffer.
+Reading from here shows all ingress and egress latencies found in the buffer for hte currnet network namespace.
+Note that, due to buffer wrap around, these might not be in strict chronological order.
+Writting any value to here clears the latency buffer of entries for the current network namespace.
 

@@ -40,7 +40,8 @@ mace_get_buf(void)
 void
 mace_push_event(unsigned long long latency,
                 mace_latency_type type,
-                unsigned long ns_id)
+                unsigned long ns_id,
+                unsigned long long ts)
 {
   // Repeated 'and' operation for race safety without locking
   int w = atomic_inc_return(&mace_buf.write)
@@ -50,6 +51,7 @@ mace_push_event(unsigned long long latency,
   mace_buf.queue[w].latency = latency;
   mace_buf.queue[w].type = type;
   mace_buf.queue[w].ns_id = ns_id;
+  mace_buf.queue[w].ts = ts;
 }
 
 struct mace_latency_event *
