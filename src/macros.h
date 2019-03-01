@@ -123,23 +123,28 @@ struct mace_ns_list {
 #define register_exit(table, key, direction, nsid) \
 { \
   int index = hash_min((key), MACE_LATENCY_TABLE_BITS); \
+  unsigned long long enter = 0; \
   unsigned long long dt = 0; \
   unsigned long saved_nsid = 0; \
   unsigned long flags; \
   \
   spin_lock_irqsave(&table[index].lock, flags); \
   if (table[index].key == (key) && table[index].valid) { \
-    dt = rdtsc() - table[index].enter; \
+    enter = table[index].enter; \
     saved_nsid = table[index].ns_id; \
     table[index].valid = 0; \
+    spin_unlock_irqrestore(&table[index].lock, flags); \
+    \
+    dt = rdtsc() - enter; \
+  } else { \
+    spin_unlock_irqrestore(&table[index].lock, flags); \
   } \
-  spin_unlock_irqrestore(&table[index].lock, flags); \
   \
   if (dt != 0) { \
     if (saved_nsid == 0) { \
       saved_nsid = nsid; \
     } \
-    mace_push_event(dt, direction, saved_nsid); \
+    mace_push_event(dt, direction, saved_nsid, enter); \
   } \
 }
 
