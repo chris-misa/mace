@@ -38,7 +38,7 @@ echo "  Ping container up"
 $PAUSE_CMD
 
 #
-# Control base-line
+# Native Control base-line
 #
 $NATIVE_PING_CMD $PING_ARGS $TARGET > native_control.ping
 echo "native_control.ping" >> $MANIFEST
@@ -47,7 +47,7 @@ echo "  Took native control"
 $PAUSE_CMD
 
 #
-# Container base-line
+# Container Control base-line
 #
 docker exec $PING_CONTAINER_NAME \
   $CONTAINER_PING_CMD $PING_ARGS $TARGET > container_control.ping
@@ -74,6 +74,16 @@ docker exec $PING_CONTAINER_NAME \
 echo "  Mace active in ping container"
 
 $PAUSE_CMD
+
+#
+# Native Monitored for perturbation
+#
+$NATIVE_PING_CMD $PING_ARGS $TARGET > native_monitored.ping
+echo "native_monitored.ping" >> $MANIFEST
+echo "  Took native monitored"
+
+$PAUSE_CMD
+
 
 #
 # Container monitored

@@ -3,6 +3,8 @@ Synchronization Issues:
 
   between intra-kernal tracking and userspace ring buffer.
 
+    Maybe use 'writing' bit to keep readers off of currently writing entries?
+
 Separation of to userspace ring buffer by namespace (mainly to allow for independent clearing).
 Maybe a case for using struct idr?
 
