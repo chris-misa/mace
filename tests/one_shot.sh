@@ -14,6 +14,8 @@ CONTAINER_PING_CMD="ping"
 PING_CONTAINER_IMAGE="chrismisa/slim-ping"
 PING_CONTAINER_NAME="ping-container"
 
+ANALYSIS_CMD="Rscript report_one_shot.r"
+
 META_DATA="metadata"
 MANIFEST="manifest"
 
@@ -24,7 +26,7 @@ PAUSE_CMD="sleep 5"
 DATE_STR=`date +%Y%m%d%H%M%S`
 
 mkdir $DATE_STR
-cd $DATE_STR
+pushd $DATE_STR
 
 echo -e "$B uname -a $B\n $(uname -a)\n" >> $META_DATA
 echo -e "$B lshw: $B\n $(lshw)\n" >> $META_DATA
@@ -106,5 +108,11 @@ docker rm $PING_CONTAINER_NAME > /dev/null
 # Remove module
 #
 rmmod mace
+
+$PAUSE_CMD
+popd
+
+echo "  Generating graphs and analysis"
+$ANALYSIS_CMD $DATE_STR
 
 echo Done.
