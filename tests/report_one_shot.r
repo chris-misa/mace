@@ -7,7 +7,7 @@ if (length(args) != 1) {
 }
 
 data_path <- args[1]
-SAVED_DATA_PATH <- paste(data_path, "saved_r_data", sep="")
+SAVED_DATA_PATH <- paste(data_path, "/saved_r_data", sep="")
 
 read_ping <- function(line) {
   d <- readPingFile(paste(data_path, "/", line, sep=""))
@@ -64,6 +64,12 @@ if (file.exists(SAVED_DATA_PATH)) {
           rtts$native_control <- append(rtts$native_control, read_ping(line))
           read <- 1
         }
+
+        # Branch for native ping monitored files
+        if (length(grep("monitored", line)) != 0) {
+          rtts$native_monitored <- append(rtts$native_monitored, read_ping(line))
+          read <- 1
+        }
       }
 
       # Branch for container files
@@ -107,15 +113,22 @@ if (file.exists(SAVED_DATA_PATH)) {
 #
 # Draw cdfs
 #
-xbnds <- c(0, 1000)
+xbnds <- c(0, 200)
 pdf(file=paste(data_path, "/cdfs.pdf", sep=""))
 plot(0, type="n", ylim=c(0,1), xlim=xbnds,
      xlab=expression(paste("RTT (",mu,"s)", sep="")),
      ylab="CDF",
      main="")
-lines(ecdf(rtts$native_control$rtt), col="purple", do.points=F, verticals=T)
+lines(ecdf(rtts$native_control$rtt), col="pink", do.points=F, verticals=T)
+lines(ecdf(rtts$native_monitored$rtt), col="purple", do.points=F, verticals=T)
 lines(ecdf(rtts$container_control$rtt), col="lightblue", do.points=F, verticals=T)
 lines(ecdf(rtts$container_monitored$rtt), col="blue", do.points=F, verticals=T)
 
+legend("bottomright",
+  legend=c("native control", "native monitored", "container control", "container monitored"),
+  col=c("pink", "purple", "lightblue", "blue"),
+  cex=0.8,
+  lty=1,
+  bg="white")
 dev.off()
 cat("Done.\n")
