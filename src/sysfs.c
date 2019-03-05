@@ -15,7 +15,12 @@
 //
 #define mace_cycles_to_ns(c) (((c) * 1000000) / tsc_khz)
 
+// Defined in module.c
 extern struct list_head mace_active_ns;
+
+// Defined in dev_file.c
+extern int mace_latency_queue_major;
+
 
 //
 // Mace kobj entry
