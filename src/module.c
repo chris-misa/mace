@@ -255,6 +255,11 @@ mace_mod_init(void)
   // Set tracepoints
   for_each_kernel_tracepoint(test_and_set_traceprobe, NULL);
 
+  // Initialize device files
+  if (mace_init_dev() < 0) {
+    return -1;
+  }
+
   // Initialize sysfs entries
   mace_init_sysfs();
 
@@ -288,6 +293,9 @@ mace_mod_exit(void)
 
   // Cleanup sysfs entries
   mace_free_sysfs();
+
+  // Cleanup device files
+  mace_free_dev();
 
   // Free active entries
   mace_del_all_ns(mace_active_ns);
