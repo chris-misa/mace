@@ -23,10 +23,9 @@ static int latency_queue_is_open = 0;
 int mace_latency_queue_major = -1;
 static struct cdev latency_queue_cdev;
 static struct class *latency_queue_class = NULL;
-static ssize_t mace_on_show(struct class *class, struct class_attribute *attr, char *buf);
-static ssize_t
-mace_on_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
-CLASS_ATTR_RW(mace_on);
+static ssize_t on_show(struct class *class, struct class_attribute *attr, char *buf);
+static ssize_t on_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
+CLASS_ATTR_RW(on);
 
 
 static int latency_queue_open(struct inode *inode, struct file *fp);
@@ -71,8 +70,8 @@ mace_init_dev(void)
     goto exit_error;
   }
 
-  if (class_create_file(latency_queue_class, &class_attr_mace_on) < 0) {
-    printk(KERN_INFO "Mace: failed to create mace_on class attribute\n");
+  if (class_create_file(latency_queue_class, &class_attr_on) < 0) {
+    printk(KERN_INFO "Mace: failed to create on class attribute\n");
     goto exit_error;
   }
 
@@ -124,11 +123,12 @@ latency_queue_release(struct inode *inode, struct file *fp)
 static ssize_t
 latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
 {
-  int read = 0;
   static char line_buf[MACE_MAX_LINE_LEN];
   static char *line_ptr = NULL;
   static int i = 0;
-  struct mace_latency_event *lat = mace_get_buf()->queue;
+
+  int read = 0;
+  struct mace_latency_event *lat = mace_get_buf()->queue + i;
   unsigned long cur_nsid = current->nsproxy->net_ns->ns.inum;
 
   if (!line_ptr || *line_ptr == '\0') {
@@ -159,6 +159,7 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
 
 finished:
 
+  i = 0;
   return 0;
 }
 
@@ -174,7 +175,7 @@ latency_queue_write(struct file *fp, const char *buf, size_t len, loff_t *offset
 // Sysfs attribute functions
 //
 static ssize_t
-mace_on_show(struct class *class,
+on_show(struct class *class,
              struct class_attribute *attr,
              char *buf)
 {
@@ -194,7 +195,7 @@ mace_on_show(struct class *class,
 }
 
 static ssize_t
-mace_on_store(struct class *class,
+on_store(struct class *class,
               struct class_attribute *attr,
               const char *buf,
               size_t count)

@@ -1,13 +1,13 @@
-
 Synchronization Issues:
 
   between intra-kernal tracking and userspace ring buffer.
 
     Maybe use 'writing' bit to keep readers off of currently writing entries?
+    Allow for pipe-style reading rather than buffer dumping style.
 
-Separation of to userspace ring buffer by namespace (mainly to allow for independent clearing).
+
+Separation of to userspace ring buffer by namespace (to allow for independent clearing).
 Maybe a case for using struct idr?
 
 Add latencies pipe (blocking reads) file to sysfs.
 
-Develop stress tests. . .
