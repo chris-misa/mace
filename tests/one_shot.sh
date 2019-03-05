@@ -26,7 +26,7 @@ PAUSE_CMD="sleep 5"
 DATE_STR=`date +%Y%m%d%H%M%S`
 
 mkdir $DATE_STR
-pushd $DATE_STR
+pushd $DATE_STR > /dev/null
 
 echo -e "$B uname -a $B\n $(uname -a)\n" >> $META_DATA
 echo -e "$B lshw: $B\n $(lshw)\n" >> $META_DATA
@@ -110,7 +110,7 @@ docker rm $PING_CONTAINER_NAME > /dev/null
 rmmod mace
 
 $PAUSE_CMD
-popd
+popd > /dev/null
 
 echo "  Generating graphs and analysis"
 $ANALYSIS_CMD $DATE_STR
