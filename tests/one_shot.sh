@@ -9,9 +9,9 @@ TARGET="192.168.0.1"
 OUTER_DEV_ID=2
 
 NATIVE_PING_CMD="ping"
-CONTAINER_PING_CMD="ping"
+CONTAINER_PING_CMD="/iputils/ping"
 
-PING_CONTAINER_IMAGE="chrismisa/slim-ping"
+PING_CONTAINER_IMAGE="chrismisa/slow-ping"
 PING_CONTAINER_NAME="ping-container"
 
 ANALYSIS_CMD="Rscript report_one_shot.r"
@@ -34,6 +34,7 @@ echo -e "$B lshw: $B\n $(lshw)\n" >> $META_DATA
 echo $B Running mace one-shot test $B
 
 docker run -itd --name=$PING_CONTAINER_NAME \
+                --entrypoint=/bin/bash \
                 $PING_CONTAINER_IMAGE
 echo "  Ping container up"
 
@@ -70,6 +71,7 @@ echo "  Inserted module"
 docker run -itd --name=$PING_CONTAINER_NAME \
                 --device /dev/mace:/dev/mace \
                 -v /sys/class/mace:/mace \
+                --entrypoint=/bin/bash \
                 $PING_CONTAINER_IMAGE
 echo "  Ping container up"
 docker exec $PING_CONTAINER_NAME \
