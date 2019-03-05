@@ -260,9 +260,6 @@ mace_mod_init(void)
     return -1;
   }
 
-  // Initialize sysfs entries
-  mace_init_sysfs();
-
   printk(KERN_INFO "Mace: running.\n");
   return 0;
 }
@@ -290,9 +287,6 @@ mace_mod_exit(void)
       && tracepoint_probe_unregister(sys_exit_tracepoint, probe_sys_exit, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister sys_exit traceprobe.\n");
   }
-
-  // Cleanup sysfs entries
-  mace_free_sysfs();
 
   // Cleanup device files
   mace_free_dev();

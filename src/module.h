@@ -49,7 +49,6 @@
 
 #include "ring_buffer.h"
 #include "dev_file.h"
-#include "sysfs.h"
 #include "macros.h"
 
 

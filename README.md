@@ -17,16 +17,12 @@ Assuming the proper kernel headers are where they should be, just
 # insmod ./mace.ko
 ```
 
-## Mace sysfs Interface
+## Mace Interface
 
+On inserting the module, a network namespace aware device file is created at /dev/mace.
+Reads from this device block, returning egress and ingress latencies in nanoseconds as they are computed by the module.
 
-The MACE interface is found at `/sys/kernel/mace/` assuming sysfs is mounted at `/sys`.
-The knobs are described below.
-
-Since containers tend to have sysfs mounted read-only, you might need to
-bind mount the mace control directory into your container. Since mace
-is actively namespace aware, calls from the container to these knobs will
-still be interpreted relative to the container's network namespace.
+Generally containers will have to be granted access to this device. In docker, user `--device /dev/mace:/dev/mace` option.
 
 ### Knobs
 
@@ -35,10 +31,4 @@ still be interpreted relative to the container's network namespace.
 Writing a non-zero value to this file enables mace for the current network
 namespace. Writing a zero disables mace. Reading shows status of current
 network namespace.
-
-* `latencies_ns`
-
-Reading from here shows all ingress and egress latencies found in the buffer for hte currnet network namespace.
-Note that, due to buffer wrap around, these might not be in strict chronological order.
-Writting any value to here clears the latency buffer of entries for the current network namespace.
 
