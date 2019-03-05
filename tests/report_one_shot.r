@@ -110,6 +110,8 @@ if (file.exists(SAVED_DATA_PATH)) {
   dput(list(rtts=rtts, latencies=latencies), file=SAVED_DATA_PATH)
 }
 
+corrected <- rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency)
+
 #
 # Draw cdfs
 #
@@ -124,9 +126,11 @@ lines(ecdf(rtts$native_monitored$rtt), col="purple", do.points=F, verticals=T)
 lines(ecdf(rtts$container_control$rtt), col="lightblue", do.points=F, verticals=T)
 lines(ecdf(rtts$container_monitored$rtt), col="blue", do.points=F, verticals=T)
 
+lines(ecdf(corrected), col="black", do.point=F, verticals=T)
+
 legend("bottomright",
-  legend=c("native control", "native monitored", "container control", "container monitored"),
-  col=c("pink", "purple", "lightblue", "blue"),
+  legend=c("native control", "native monitored", "container control", "container monitored", "container corrected"),
+  col=c("pink", "purple", "lightblue", "blue", "black"),
   cex=0.8,
   lty=1,
   bg="white")
