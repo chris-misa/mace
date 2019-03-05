@@ -131,7 +131,7 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
   struct mace_latency_event *lat = mace_get_buf()->queue;
   unsigned long cur_nsid = current->nsproxy->net_ns->ns.inum;
 
-  if (!line_ptr || *line_ptr = '\0') {
+  if (!line_ptr || *line_ptr == '\0') {
     while (lat->ns_id != cur_nsid && i < MACE_EVENT_QUEUE_SIZE) {
       lat++;
       i++;
@@ -141,6 +141,7 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
     }
     snprintf(line_buf,
              MACE_MAX_LINE_LEN,
+             "[%llu] %s: %llu\n",
              mace_cycles_to_ns(lat->ts),
              mace_latency_type_str(lat->type),
              mace_cycles_to_ns(lat->latency));
@@ -150,7 +151,7 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
   }
 
   while (len && *line_ptr) {
-    put_user(*(line_ptr++), buff+);
+    put_user(*(line_ptr++), buf++);
     len--;
     read++;
   }
