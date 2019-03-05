@@ -68,11 +68,12 @@ insmod ${MACE_PATH}mace.ko outer_dev=$OUTER_DEV_ID
 echo "  Inserted module"
 
 docker run -itd --name=$PING_CONTAINER_NAME \
-                -v /sys/kernel/mace:/mace \
+                --device /dev/mace:/dev/mace \
+                -v /sys/class/mace:/mace \
                 $PING_CONTAINER_IMAGE
 echo "  Ping container up"
 docker exec $PING_CONTAINER_NAME \
-  bash -c 'echo 1 > /mace/mace_on'
+  bash -c 'echo 1 > /mace/on'
 echo "  Mace active in ping container"
 
 $PAUSE_CMD
@@ -96,7 +97,7 @@ echo "container_monitored.ping" >> $MANIFEST
 echo "  Took container monitored"
 
 docker exec $PING_CONTAINER_NAME \
-  cat /mace/latencies_ns > container_monitored.lat
+  cat /dev/mace > container_monitored.lat
 echo "container_monitored.lat" >> $MANIFEST
 echo "  Retrieved container latencies"
 
