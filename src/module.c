@@ -9,13 +9,13 @@
 // Test for ok ipv4 packets
 #ifdef DEBUG
   #define check_ipv4(ip) \
-    if (!ip || ip->version != 4) { \
+    if (!(ip) || (ip)->version != 4) { \
       printk(KERN_INFO "Mace: Ignoring non-ipv4 packet.\n"); \
       return; \
     }
 #else
   #define check_ipv4(ip) \
-    if (!ip || ip->version != 4) { \
+    if (!(ip) || (ip)->version != 4) { \
       return; \
     }
 #endif
@@ -154,6 +154,7 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 
     key = *((u64 *)(skb->data + ip->ihl * 4));
 
+    printk(KERN_INFO "Mace: napi_gro_receive_entry key: %llX\n", key);
     register_entry(ingress_latencies, key, 0);
   }
 }
@@ -180,16 +181,23 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
     if (res) {
 
       // Clunky pointer following
+      // also doesn't work: looks like the userspace memory is not ready
+      // Why this is the case as the system call which prepares this memory
+      // is about to return, I don't know . . .
       copy_from_user(&msg, (void *)regs->si, sizeof(struct user_msghdr));
       copy_from_user(&iov, msg.msg_iov, sizeof(struct iovec));
       copy_from_user(&ip, iov.iov_base, sizeof(struct iphdr));
 
       // Raw socket gives us the ip header,
       // probably will need a switch here based on socket type.
+
+      printk(KERN_INFO "Mace: extracted ip version %d ihl %d\n", ip.version, ip.ihl);
       check_ipv4(&ip);
 
       // key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
       copy_from_user(&key, iov.iov_base + ip.ihl * 4, sizeof(u64));
+
+      printk(KERN_INFO "Mace: sys_exit key: %llX\n", key);
       register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
     }
   }
@@ -212,7 +220,7 @@ test_and_set_traceprobe(struct tracepoint *tp, void *unused)
     ret = tracepoint_probe_register(tp, probe_net_dev_start_xmit, NULL);
     net_dev_start_xmit_tracepoint = tp;
     found = 1;
-  } else if (!strcmp(tp->name, "napi_gro_receive_entry")) {
+  } else if (!strcmp(tp->name, "netif_receive_skb")) {
     ret = tracepoint_probe_register(tp, probe_napi_gro_receive_entry, NULL);
     napi_gro_receive_entry_tracepoint = tp;
     found = 1;
