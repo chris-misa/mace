@@ -154,7 +154,6 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
     ip = (struct iphdr *)(skb->data);
     check_ipv4(ip);
     
-    /*
     if (ip->protocol == 1) {
 
       // Parse the icmp header, only want echo replies
@@ -163,7 +162,6 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
         printk(KERN_INFO "Mace: echo reply %d\n", be16_to_cpu(icmp->un.echo.sequence));
       }
     }
-    */
 
     key = *((u64 *)(skb->data + ip->ihl * 4));
 
@@ -209,7 +207,7 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       // copy_from_user(&key, iov.iov_base + 20, 8);
       copy_from_user(&key, iov.iov_base + ip.ihl * 4, 8);
 
-      printk(KERN_INFO "Mace: sys_exit key: %llX\n", key);
+      printk(KERN_INFO "Mace: sys_exit key: %016llX\n", key);
       register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
     }
   }
