@@ -167,12 +167,6 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
     ip = (struct iphdr *)(skb->data);
     check_ipv4(ip);
 
-    printk(KERN_INFO "Mace: mac_header: %p\n", skb->mac_header);
-    printk(KERN_INFO "Mace: network_header: %p\n", skb->network_header);
-    printk(KERN_INFO "Mace: transport_header: %p\n", skb->transport_header);
-    printk(KERN_INFO "Mace: data pointer: %p\n", skb->data);
-    printk(KERN_INFO "Mace: head pointer: %p\n", skb->head);
-
     d_ptr = skb->data + 20;
 
     printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
