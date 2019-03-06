@@ -132,6 +132,7 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
     check_ipv4(ip);
 
     key =*((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
+    printk(KERN_INFO "Mace: net_dev_start_xmit key: %llX\n", key);
     register_exit(egress_latencies, key, MACE_LATENCY_EGRESS, 0);
   }
 }
@@ -143,18 +144,31 @@ static void
 probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 {
   struct iphdr *ip;
+  struct icmphdr *icmp;
   u64 key;
 
   // Filter for outer device
   if (skb->dev && mace_in_set(skb->dev->ifindex, outer_devs)) {
     
     // Get key from payload bytes and store in ingress table
-    ip = (struct iphdr *)skb->data;
+    ip = (struct iphdr *)(skb->data);
     check_ipv4(ip);
+    
+    /*
+    if (ip->protocol == 1) {
+
+      // Parse the icmp header, only want echo replies
+      icmp = (struct icmphdr *)(skb->data + ip->ihl * 4);
+      if (icmp->type == ICMP_ECHOREPLY) {
+        printk(KERN_INFO "Mace: echo reply %d\n", be16_to_cpu(icmp->un.echo.sequence));
+      }
+    }
+    */
 
     key = *((u64 *)(skb->data + ip->ihl * 4));
 
-    printk(KERN_INFO "Mace: napi_gro_receive_entry key: %llX\n", key);
+    printk(KERN_INFO "Mace: napi_gro_receive_entry key: %016llX\n", key);
+
     register_entry(ingress_latencies, key, 0);
   }
 }
@@ -180,10 +194,6 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
     mace_lookup_ns(ns_id, mace_active_ns, &res);
     if (res) {
 
-      // Clunky pointer following
-      // also doesn't work: looks like the userspace memory is not ready
-      // Why this is the case as the system call which prepares this memory
-      // is about to return, I don't know . . .
       copy_from_user(&msg, (void *)regs->si, sizeof(struct user_msghdr));
       copy_from_user(&iov, msg.msg_iov, sizeof(struct iovec));
       copy_from_user(&ip, iov.iov_base, sizeof(struct iphdr));
@@ -191,11 +201,13 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       // Raw socket gives us the ip header,
       // probably will need a switch here based on socket type.
 
-      printk(KERN_INFO "Mace: extracted ip version %d ihl %d\n", ip.version, ip.ihl);
       check_ipv4(&ip);
 
-      // key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
-      copy_from_user(&key, iov.iov_base + ip.ihl * 4, sizeof(u64));
+      //key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
+      //key = *((u64 *)(((char *)msg.msg_iov->iov_base) + 20));
+      // copy_from_user(&key, iov.iov_base + ip.ihl * 4, sizeof(u64));
+      // copy_from_user(&key, iov.iov_base + 20, 8);
+      copy_from_user(&key, iov.iov_base + ip.ihl * 4, 8);
 
       printk(KERN_INFO "Mace: sys_exit key: %llX\n", key);
       register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
