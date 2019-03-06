@@ -29,6 +29,7 @@
 
 #include <linux/fs.h>
 #include <asm/uaccess.h>
+#include <linux/uio.h>
 
 #include <linux/slab.h>
 
