@@ -123,6 +123,7 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 {
   struct iphdr *ip;
   u64 key;
+  unsigned char *d_ptr;
   
   // Filter for outer devices
   if (mace_in_set(dev->ifindex, outer_devs)) {
@@ -133,6 +134,17 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 
     key =*((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
     printk(KERN_INFO "Mace: net_dev_start_xmit key: %016llX\n", key);
+
+    d_ptr = skb->data + sizeof(struct ethhdr) + 20;
+    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		    d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
+		    d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
+    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		    d_ptr[8], d_ptr[9], d_ptr[10], d_ptr[11],
+		    d_ptr[12], d_ptr[13], d_ptr[14], d_ptr[15]);
+    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		    d_ptr[16], d_ptr[17], d_ptr[18], d_ptr[19],
+		    d_ptr[20], d_ptr[21], d_ptr[22], d_ptr[23]);
     register_exit(egress_latencies, key, MACE_LATENCY_EGRESS, 0);
   }
 }
@@ -146,6 +158,7 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
   struct iphdr *ip;
   struct icmphdr *icmp;
   u64 key;
+  unsigned char *d_ptr;
 
   // Filter for outer device
   if (skb->dev && mace_in_set(skb->dev->ifindex, outer_devs)) {
@@ -159,6 +172,18 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
     printk(KERN_INFO "Mace: transport_header: %p\n", skb->transport_header);
     printk(KERN_INFO "Mace: data pointer: %p\n", skb->data);
     printk(KERN_INFO "Mace: head pointer: %p\n", skb->head);
+
+    d_ptr = skb->data + 20;
+
+    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		    d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
+		    d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
+    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		    d_ptr[8], d_ptr[9], d_ptr[10], d_ptr[11],
+		    d_ptr[12], d_ptr[13], d_ptr[14], d_ptr[15]);
+    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		    d_ptr[16], d_ptr[17], d_ptr[18], d_ptr[19],
+		    d_ptr[20], d_ptr[21], d_ptr[22], d_ptr[23]);
     
     if (ip->protocol == 1) {
 
@@ -189,6 +214,7 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
   struct iovec iov;
   struct iphdr ip;
   u64 key;
+  unsigned char *d_ptr;
 
   // Filter by syscall number
   if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
@@ -213,7 +239,15 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       // copy_from_user(&key, iov.iov_base + 20, 8);
       copy_from_user(&key, iov.iov_base + ip.ihl * 4, 8);
 
+
       printk(KERN_INFO "Mace: sys_exit key: %016llX\n", key);
+
+
+      d_ptr = (unsigned char *)&key;
+    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		    d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
+		    d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
+
       register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
     }
   }
