@@ -4,9 +4,9 @@ B="===================="
 
 PING_ARGS="-D -i 0.0 -s 56 -c 100"
 
-TARGET="192.168.0.1"
+TARGET="10.10.1.2"
 
-OUTER_DEV_ID=2
+OUTER_DEV_ID=3
 
 NATIVE_PING_CMD="ping"
 CONTAINER_PING_CMD="/iputils/ping"
