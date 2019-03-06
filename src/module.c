@@ -132,7 +132,7 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
     check_ipv4(ip);
 
     key =*((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
-    printk(KERN_INFO "Mace: net_dev_start_xmit key: %llX\n", key);
+    printk(KERN_INFO "Mace: net_dev_start_xmit key: %016llX\n", key);
     register_exit(egress_latencies, key, MACE_LATENCY_EGRESS, 0);
   }
 }
@@ -153,6 +153,12 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
     // Get key from payload bytes and store in ingress table
     ip = (struct iphdr *)(skb->data);
     check_ipv4(ip);
+
+    printk(KERN_INFO "Mace: mac_header: %p\n", skb->mac_header);
+    printk(KERN_INFO "Mace: network_header: %p\n", skb->network_header);
+    printk(KERN_INFO "Mace: transport_header: %p\n", skb->transport_header);
+    printk(KERN_INFO "Mace: data pointer: %p\n", skb->data);
+    printk(KERN_INFO "Mace: head pointer: %p\n", skb->head);
     
     if (ip->protocol == 1) {
 
