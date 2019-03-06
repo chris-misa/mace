@@ -166,8 +166,9 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
   unsigned long ns_id;
   int res;
-  struct user_msghdr *msg;
-  struct iphdr *ip;
+  struct user_msghdr msg;
+  struct iovec iov;
+  struct iphdr ip;
   u64 key;
 
   // Filter by syscall number
@@ -178,21 +179,18 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
     mace_lookup_ns(ns_id, mace_active_ns, &res);
     if (res) {
 
-      //
-      // This blind dereferencing and copying is probably the problem
-      //
-      msg = (struct user_msghdr *)regs->si;
-      if (msg) {
+      // Clunky pointer following
+      copy_from_user(&msg, (void *)regs->si, sizeof(struct user_msghdr));
+      copy_from_user(&iov, msg.msg_iov, sizeof(struct iovec));
+      copy_from_user(&ip, iov.iov_base, sizeof(struct iphdr));
 
-        // Raw socket gives us the ip header,
-        // probably will need a switch here based on socket type.
-        ip = (struct iphdr *)msg->msg_iov->iov_base;
-        check_ipv4(ip);
+      // Raw socket gives us the ip header,
+      // probably will need a switch here based on socket type.
+      check_ipv4(&ip);
 
-        // key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
-        copy_from_user(&key, msg->msg_iov->iov_base + ip->ihl * 4, sizeof(u64));
-        register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
-      }
+      // key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
+      copy_from_user(&key, iov.iov_base + ip.ihl * 4, sizeof(u64));
+      register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
     }
   }
 }
