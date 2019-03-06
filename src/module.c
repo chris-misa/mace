@@ -108,7 +108,8 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 
       // Assuming user messages starts at beginning of payload
       // This will probably not be true for layer 4 sockets
-      key = *((u64 *)regs->si);
+      // key = *((u64 *)regs->si);
+      copy_from_user(&key, (void *)regs->si, sizeof(u64));
       register_entry(egress_latencies, key, ns_id);
     }
   }
@@ -177,6 +178,9 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
     mace_lookup_ns(ns_id, mace_active_ns, &res);
     if (res) {
 
+      //
+      // This blind dereferencing and copying is probably the problem
+      //
       msg = (struct user_msghdr *)regs->si;
       if (msg) {
 
@@ -185,7 +189,8 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
         ip = (struct iphdr *)msg->msg_iov->iov_base;
         check_ipv4(ip);
 
-        key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
+        // key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
+        copy_from_user(&key, msg->msg_iov->iov_base + ip->ihl * 4, sizeof(u64));
         register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
       }
     }
