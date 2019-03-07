@@ -49,7 +49,7 @@ struct list_head mace_active_ns;
 //
 static struct tracepoint *sys_enter_tracepoint;
 static struct tracepoint *net_dev_start_xmit_tracepoint;
-static struct tracepoint *napi_gro_receive_entry_tracepoint;
+static struct tracepoint *netif_receive_skb_tracepoint;
 static struct tracepoint *sys_exit_tracepoint;
 
 //
@@ -123,7 +123,6 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 {
   struct iphdr *ip;
   u64 key;
-  unsigned char *d_ptr;
   
   // Filter for outer devices
   if (mace_in_set(dev->ifindex, outer_devs)) {
@@ -133,19 +132,24 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
     check_ipv4(ip);
 
     key =*((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
-    printk(KERN_INFO "Mace: net_dev_start_xmit key: %016llX\n", key);
-
-    d_ptr = skb->data + sizeof(struct ethhdr) + 20;
-    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		    d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
-		    d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
-    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		    d_ptr[8], d_ptr[9], d_ptr[10], d_ptr[11],
-		    d_ptr[12], d_ptr[13], d_ptr[14], d_ptr[15]);
-    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		    d_ptr[16], d_ptr[17], d_ptr[18], d_ptr[19],
-		    d_ptr[20], d_ptr[21], d_ptr[22], d_ptr[23]);
     register_exit(egress_latencies, key, MACE_LATENCY_EGRESS, 0);
+
+#ifdef DEBUG
+    printk(KERN_INFO "Mace: net_dev_start_xmit key: %016llX\n", key);
+    {
+      unsigned char *d_ptr;
+      d_ptr = skb->data + sizeof(struct ethhdr) + 20;
+      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+          d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
+          d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
+      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+          d_ptr[8], d_ptr[9], d_ptr[10], d_ptr[11],
+          d_ptr[12], d_ptr[13], d_ptr[14], d_ptr[15]);
+      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+          d_ptr[16], d_ptr[17], d_ptr[18], d_ptr[19],
+          d_ptr[20], d_ptr[21], d_ptr[22], d_ptr[23]);
+    }
+#endif
   }
 }
 
@@ -153,10 +157,9 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 // Ingress outer entry tracepoint.
 //
 static void
-probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
+probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 {
   struct iphdr *ip;
-  struct icmphdr *icmp;
   u64 key;
   unsigned char *d_ptr;
 
@@ -169,6 +172,12 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
 
     d_ptr = skb->data + 20;
 
+    
+    key = *((u64 *)(skb->data + ip->ihl * 4));
+    register_entry(ingress_latencies, key, 0);
+
+#ifdef DEBUG
+    printk(KERN_INFO "Mace: netif_receive_skb key: %016llX\n", key);
     printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
 		    d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
 		    d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
@@ -178,21 +187,7 @@ probe_napi_gro_receive_entry(void *unused, struct sk_buff *skb)
     printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
 		    d_ptr[16], d_ptr[17], d_ptr[18], d_ptr[19],
 		    d_ptr[20], d_ptr[21], d_ptr[22], d_ptr[23]);
-    
-    if (ip->protocol == 1) {
-
-      // Parse the icmp header, only want echo replies
-      icmp = (struct icmphdr *)(skb->data + ip->ihl * 4);
-      if (icmp->type == ICMP_ECHOREPLY) {
-        printk(KERN_INFO "Mace: echo reply %d\n", be16_to_cpu(icmp->un.echo.sequence));
-      }
-    }
-
-    key = *((u64 *)(skb->data + ip->ihl * 4));
-
-    printk(KERN_INFO "Mace: napi_gro_receive_entry key: %016llX\n", key);
-
-    register_entry(ingress_latencies, key, 0);
+#endif
   }
 }
 
@@ -208,7 +203,6 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
   struct iovec iov;
   struct iphdr ip;
   u64 key;
-  unsigned char *d_ptr;
 
   // Filter by syscall number
   if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
@@ -220,29 +214,27 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 
       copy_from_user(&msg, (void *)regs->si, sizeof(struct user_msghdr));
       copy_from_user(&iov, msg.msg_iov, sizeof(struct iovec));
-      copy_from_user(&ip, iov.iov_base, sizeof(struct iphdr));
 
       // Raw socket gives us the ip header,
-      // probably will need a switch here based on socket type.
+      // Might need to check for L4 protocols here.
+      copy_from_user(&ip, iov.iov_base, sizeof(struct iphdr));
 
-      check_ipv4(&ip);
-
-      //key = *((u64 *)(msg->msg_iov->iov_base + ip->ihl * 4));
-      //key = *((u64 *)(((char *)msg.msg_iov->iov_base) + 20));
-      // copy_from_user(&key, iov.iov_base + ip.ihl * 4, sizeof(u64));
-      // copy_from_user(&key, iov.iov_base + 20, 8);
+      if (ip.version != 4) {
+        return;
+      }
       copy_from_user(&key, iov.iov_base + ip.ihl * 4, 8);
+      register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
 
-
+#ifdef DEBUG
       printk(KERN_INFO "Mace: sys_exit key: %016llX\n", key);
 
-
-      d_ptr = (unsigned char *)&key;
-    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		    d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
-		    d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
-
-      register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
+      {
+        unsigned char *d_ptr = (unsigned char *)&key;
+        printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+        d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
+        d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
+      }
+#endif
     }
   }
 }
@@ -265,8 +257,8 @@ test_and_set_traceprobe(struct tracepoint *tp, void *unused)
     net_dev_start_xmit_tracepoint = tp;
     found = 1;
   } else if (!strcmp(tp->name, "netif_receive_skb")) {
-    ret = tracepoint_probe_register(tp, probe_napi_gro_receive_entry, NULL);
-    napi_gro_receive_entry_tracepoint = tp;
+    ret = tracepoint_probe_register(tp, probe_netif_receive_skb, NULL);
+    netif_receive_skb_tracepoint = tp;
     found = 1;
   } else if (!strcmp(tp->name, "sys_exit")) {
     ret = tracepoint_probe_register(tp, probe_sys_exit, NULL);
@@ -288,7 +280,7 @@ mace_mod_init(void)
   int ret = 0;
   sys_enter_tracepoint = NULL;
   net_dev_start_xmit_tracepoint = NULL;
-  napi_gro_receive_entry_tracepoint = NULL;
+  netif_receive_skb_tracepoint = NULL;
   sys_exit_tracepoint = NULL;
   INIT_LIST_HEAD(&mace_active_ns);
 
@@ -334,9 +326,9 @@ mace_mod_exit(void)
       && tracepoint_probe_unregister(net_dev_start_xmit_tracepoint, probe_net_dev_start_xmit, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister net_dev_start_xmit traceprobe.\n");
   }
-  if (napi_gro_receive_entry_tracepoint
-      && tracepoint_probe_unregister(napi_gro_receive_entry_tracepoint, probe_napi_gro_receive_entry, NULL)) {
-    printk(KERN_WARNING "Mace: Failed to unregister napi_gro_receive_entry_tracepoint.\n");
+  if (netif_receive_skb_tracepoint
+      && tracepoint_probe_unregister(netif_receive_skb_tracepoint, probe_netif_receive_skb, NULL)) {
+    printk(KERN_WARNING "Mace: Failed to unregister netif_receive_skb_tracepoint.\n");
   }
   if (sys_exit_tracepoint
       && tracepoint_probe_unregister(sys_exit_tracepoint, probe_sys_exit, NULL)) {

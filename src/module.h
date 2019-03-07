@@ -52,6 +52,9 @@
 #include "dev_file.h"
 #include "macros.h"
 
-
+//
+// Uncomment this macro to get lots of printk information and terrible performance
+//
+// #define DEBUG
 
 #endif
