@@ -2,11 +2,13 @@
 
 B="===================="
 
+NUM_ROUNDS=3
+
 PING_ARGS="-D -i 0.0 -s 56 -c 100"
 
 TARGET="10.10.1.2"
 
-OUTER_DEV_ID=3
+OUTER_DEV_ID=5
 
 NATIVE_PING_CMD="ping"
 CONTAINER_PING_CMD="/iputils/ping"
@@ -33,86 +35,93 @@ echo -e "$B lshw: $B\n $(lshw)\n" >> $META_DATA
 
 echo $B Running mace one-shot test $B
 
-docker run -itd --name=$PING_CONTAINER_NAME \
-                --entrypoint=/bin/bash \
-                $PING_CONTAINER_IMAGE
-echo "  Ping container up"
-
-$PAUSE_CMD
-
-#
-# Native Control base-line
-#
-$NATIVE_PING_CMD $PING_ARGS $TARGET > native_control.ping
 echo "native_control.ping" >> $MANIFEST
-echo "  Took native control"
-
-$PAUSE_CMD
-
-#
-# Container Control base-line
-#
-docker exec $PING_CONTAINER_NAME \
-  $CONTAINER_PING_CMD $PING_ARGS $TARGET > container_control.ping
 echo "container_control.ping" >> $MANIFEST
-echo "  Took container control"
-
-$PAUSE_CMD
-docker stop $PING_CONTAINER_NAME > /dev/null
-docker rm $PING_CONTAINER_NAME > /dev/null
-
-#
-# Insert module
-#
-insmod ${MACE_PATH}mace.ko outer_dev=$OUTER_DEV_ID
-[ $? -eq 0 ] || (echo "Failed to insert module" && exit)
-echo "  Inserted module"
-
-docker run -itd --name=$PING_CONTAINER_NAME \
-                --device /dev/mace:/dev/mace \
-                -v /sys/class/mace:/mace \
-                --entrypoint=/bin/bash \
-                $PING_CONTAINER_IMAGE
-echo "  Ping container up"
-docker exec $PING_CONTAINER_NAME \
-  bash -c 'echo 1 > /mace/on'
-echo "  Mace active in ping container"
-
-$PAUSE_CMD
-
-#
-# Native Monitored for perturbation
-#
-$NATIVE_PING_CMD $PING_ARGS $TARGET > native_monitored.ping
 echo "native_monitored.ping" >> $MANIFEST
-echo "  Took native monitored"
-
-$PAUSE_CMD
-
-
-#
-# Container monitored
-#
-docker exec $PING_CONTAINER_NAME \
-  $CONTAINER_PING_CMD $PING_ARGS $TARGET > container_monitored.ping
 echo "container_monitored.ping" >> $MANIFEST
-echo "  Took container monitored"
-
-docker exec $PING_CONTAINER_NAME \
-  cat /dev/mace > container_monitored.lat
 echo "container_monitored.lat" >> $MANIFEST
-echo "  Retrieved container latencies"
 
-$PAUSE_CMD
-docker stop $PING_CONTAINER_NAME > /dev/null
-docker rm $PING_CONTAINER_NAME > /dev/null
+for i in `seq 1 $NUM_ROUNDS`
+do
 
-#
-# Remove module
-#
-rmmod mace
+  echo $B Round $i $B
 
-$PAUSE_CMD
+  docker run -itd --name=$PING_CONTAINER_NAME \
+                  --entrypoint=/bin/bash \
+                  $PING_CONTAINER_IMAGE
+  echo "  Ping container up"
+
+  $PAUSE_CMD
+
+  #
+  # Native Control base-line
+  #
+  $NATIVE_PING_CMD $PING_ARGS $TARGET >> native_control.ping
+  echo "  Took native control"
+
+  $PAUSE_CMD
+
+  #
+  # Container Control base-line
+  #
+  docker exec $PING_CONTAINER_NAME \
+    $CONTAINER_PING_CMD $PING_ARGS $TARGET >> container_control.ping
+  echo "  Took container control"
+
+  $PAUSE_CMD
+  docker stop $PING_CONTAINER_NAME > /dev/null
+  docker rm $PING_CONTAINER_NAME > /dev/null
+
+  #
+  # Insert module
+  #
+  insmod ${MACE_PATH}mace.ko outer_dev=$OUTER_DEV_ID
+  [ $? -eq 0 ] || (echo "Failed to insert module" && exit)
+  echo "  Inserted module"
+
+  docker run -itd --name=$PING_CONTAINER_NAME \
+                  --device /dev/mace:/dev/mace \
+                  -v /sys/class/mace:/mace \
+                  --entrypoint=/bin/bash \
+                  $PING_CONTAINER_IMAGE
+  echo "  Ping container up"
+  docker exec $PING_CONTAINER_NAME \
+    bash -c 'echo 1 > /mace/on'
+  echo "  Mace active in ping container"
+
+  $PAUSE_CMD
+
+  #
+  # Native Monitored for perturbation
+  #
+  $NATIVE_PING_CMD $PING_ARGS $TARGET >> native_monitored.ping
+  echo "  Took native monitored"
+
+  $PAUSE_CMD
+
+  #
+  # Container monitored
+  #
+  docker exec $PING_CONTAINER_NAME \
+    $CONTAINER_PING_CMD $PING_ARGS $TARGET >> container_monitored.ping
+  echo "  Took container monitored"
+
+  docker exec $PING_CONTAINER_NAME \
+    cat /dev/mace >> container_monitored.lat
+  echo "  Retrieved container latencies"
+
+  $PAUSE_CMD
+  docker stop $PING_CONTAINER_NAME > /dev/null
+  docker rm $PING_CONTAINER_NAME > /dev/null
+
+  #
+  # Remove module
+  #
+  rmmod mace
+
+  $PAUSE_CMD
+done
+
 popd > /dev/null
 
 echo "  Generating graphs and analysis"

@@ -307,7 +307,7 @@ mace_mod_init(void)
     return -1;
   }
 
-  printk(KERN_INFO "Mace: running.\n");
+  printk(KERN_INFO "Mace: running, buffering up to %d latencies.\n", MACE_EVENT_QUEUE_SIZE);
   return 0;
 }
 
