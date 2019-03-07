@@ -24,7 +24,7 @@ struct mace_latency_event {
   unsigned long ns_id;
 };
 
-#define MACE_EVENT_QUEUE_BITS 8 // Must be less than sizeof(atomic_t) * 8
+#define MACE_EVENT_QUEUE_BITS 16 // Must be less than sizeof(atomic_t) * 8
 #define MACE_EVENT_QUEUE_SIZE (1 << MACE_EVENT_QUEUE_BITS)
 #define MACE_EVENT_QUEUE_MASK (MACE_EVENT_QUEUE_SIZE - 1)
 
