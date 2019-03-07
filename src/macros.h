@@ -24,9 +24,6 @@ struct mace_ns_list {
   struct list_head list;
 };
 
-
-// #define DEBUG
-
 // Syscall numbers. . .waiting for a better day
 #define SYSCALL_SENDTO 44
 #define SYSCALL_RECVMSG 47
