@@ -4,7 +4,7 @@ B="===================="
 
 NUM_ROUNDS=3
 
-PING_ARGS="-D -i 0.0 -s 56 -c 2000"
+PING_ARGS="-D -i 0.0 -s 1472 -c 2000"
 
 TARGET="10.10.1.2"
 
@@ -48,7 +48,8 @@ do
 
   docker run -itd --name=$PING_CONTAINER_NAME \
                   --entrypoint=/bin/bash \
-                  $PING_CONTAINER_IMAGE
+                  $PING_CONTAINER_IMAGE \
+                  > /dev/null
   echo "  Ping container up"
 
   $PAUSE_CMD
@@ -83,7 +84,8 @@ do
                   --device /dev/mace:/dev/mace \
                   -v /sys/class/mace:/mace \
                   --entrypoint=/bin/bash \
-                  $PING_CONTAINER_IMAGE
+                  $PING_CONTAINER_IMAGE \
+                  > /dev/null
   echo "  Ping container up"
   docker exec $PING_CONTAINER_NAME \
     bash -c 'echo 1 > /mace/on'
