@@ -115,7 +115,7 @@ corrected <- rtts$container_monitored$rtt - (latencies$container$ingress$latency
 #
 # Draw cdfs
 #
-xbnds <- c(0, 200)
+xbnds <- c(0, 100)
 pdf(file=paste(data_path, "/cdfs.pdf", sep=""))
 plot(0, type="n", ylim=c(0,1), xlim=xbnds,
      xlab=expression(paste("RTT (",mu,"s)", sep="")),
