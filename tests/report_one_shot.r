@@ -17,7 +17,7 @@ if (length(args) != 1) {
 
 data_path <- args[1]
 SAVED_DATA_PATH <- paste(data_path, "/saved_r_data", sep="")
-SUMMARY_DATA_PATH <- paste(data_path, "/means", sep="")
+SUMMARY_DATA_PATH <- paste(data_path, "/summary", sep="")
 
 #
 # Wrapers around utility parsing functions sourced above
@@ -146,7 +146,9 @@ dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
 	  container_control=list(mean=mean(rtts$container_control$rtt),
 				 sd=sd(rtts$container_control$rtt)),
 	  container_monitored=list(mean=mean(rtts$container_monitored$rtt),
-				   sd=sd(rtts$container_monitored$rtt))),
+				   sd=sd(rtts$container_monitored$rtt)),
+	  corrected=list(mean=mean(corrected),
+			 sd=sd(corrected))),
      file=SUMMARY_DATA_PATH)
 
 #
