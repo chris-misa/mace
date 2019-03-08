@@ -1,6 +1,15 @@
+#
+# R script to parse ping and latency data from one_shot.sh test run
+#
+# Draws a CDF of native control, container control, native monitored, container monitored RTT
+# Also computes container monitored - latencies 
+#
 source("readPingFile.r")
 source("readLatencyFile.r")
 
+#
+# Argument should be directory holding raw data
+#
 args <- commandArgs(trailingOnly=T)
 if (length(args) != 1) {
   stop("Need path to data")
@@ -8,7 +17,11 @@ if (length(args) != 1) {
 
 data_path <- args[1]
 SAVED_DATA_PATH <- paste(data_path, "/saved_r_data", sep="")
+SUMMARY_DATA_PATH <- paste(data_path, "/means", sep="")
 
+#
+# Wrapers around utility parsing functions sourced above
+#
 read_ping <- function(line) {
   d <- readPingFile(paste(data_path, "/", line, sep=""))
   cat("Read ", length(d$rtt), " rtts from ", line, "\n")
@@ -22,8 +35,15 @@ read_latency <- function(line) {
   d
 }
 
+#
+# Begin main work
+#
+
 cat("---------------Running Report for one_shot.sh------------\n")
 
+#
+# Load data, either saved from previous run or from raw files
+#
 if (file.exists(SAVED_DATA_PATH)) {
   cat("  Found saved data\n")
   data <- dget(SAVED_DATA_PATH)
@@ -110,7 +130,24 @@ if (file.exists(SAVED_DATA_PATH)) {
   dput(list(rtts=rtts, latencies=latencies), file=SAVED_DATA_PATH)
 }
 
+#
+# Crude application of latency data to container monitored RTT
+#
 corrected <- rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency)
+
+
+#
+# Write out summary stats
+#
+dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
+			      sd=sd(rtts$native_control$rtt)),
+	  native_monitored=list(mean=mean(rtts$native_monitored$rtt),
+				sd=sd(rtts$native_monitored$rtt)),
+	  container_control=list(mean=mean(rtts$container_control$rtt),
+				 sd=sd(rtts$container_control$rtt)),
+	  container_monitored=list(mean=mean(rtts$container_monitored$rtt),
+				   sd=sd(rtts$container_monitored$rtt))),
+     file=SUMMARY_DATA_PATH)
 
 #
 # Draw cdfs
@@ -136,3 +173,6 @@ legend("bottomright",
   bg="white")
 dev.off()
 cat("Done.\n")
+
+
+

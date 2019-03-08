@@ -4,8 +4,8 @@
 # Execute the one-shot routine once for a series of added iperf traffic pairs
 #
 
-IPERF_PAIRS_MAX=10
-IPERF_PAIRS_STEP=5
+IPERF_PAIRS_MAX=40
+IPERF_PAIRS_STEP=10
 
 export TARGET_CPU=0
 MAX_CPUS=20
