@@ -46,7 +46,7 @@ do
   # Insert module
   #
   insmod ${MACE_PATH}mace.ko outer_dev=$OUTER_DEV_ID
-  [ $? -eq 0 ] || (echo "Failed to insert module" && exit)
+  [ $? -eq 0 ] || { echo "Failed to insert module"; exit; }
   echo "  Inserted module"
 
   docker run -itd --name=$PING_CONTAINER_NAME \
