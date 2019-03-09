@@ -39,6 +39,7 @@ void mace_push_event(unsigned long long latency,
                      mace_latency_type type,
                      unsigned long ns_id,
                      unsigned long long ts);
+// Unimplemented
 struct mace_latency_event * mace_pop_event(void);
 void mace_buffer_clear(void);
 char * mace_latency_type_str(mace_latency_type type);
