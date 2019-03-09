@@ -28,7 +28,8 @@ native_control <- list(mean=c(), median=c(), sd=c())
 native_monitored <- list(mean=c(), median=c(), sd=c())
 container_control <- list(mean=c(), median=c(), sd=c())
 container_monitored <- list(mean=c(), median=c(), sd=c())
-corrected <- list(mean=c(), median=c(), sd=c())
+container_corrected <- list(mean=c(), median=c(), sd=c())
+native_corrected <- list(mean=c(), median=c(), sd=c())
 container_counts <- c()
 
 con <- file(paste(data_path, "/manifest", sep=""), "r")
@@ -57,9 +58,13 @@ while (T) {
 	container_monitored$median <- c(container_monitored$median, data$container_monitored$median)
 	container_monitored$sd <- c(container_monitored$sd, data$container_monitored$sd)
 
-	corrected$mean <- c(corrected$mean, data$corrected$mean)
-	corrected$median <- c(corrected$median, data$corrected$median)
-	corrected$sd <- c(corrected$sd, data$corrected$sd)
+	container_corrected$mean <- c(container_corrected$mean, data$container_corrected$mean)
+	container_corrected$median <- c(container_corrected$median, data$container_corrected$median)
+	container_corrected$sd <- c(container_corrected$sd, data$container_corrected$sd)
+
+	native_corrected$mean <- c(native_corrected$mean, data$native_corrected$mean)
+	native_corrected$median <- c(native_corrected$median, data$native_corrected$median)
+	native_corrected$sd <- c(native_corrected$sd, data$native_corrected$sd)
 }
 close(con)
 
@@ -78,11 +83,12 @@ lines(container_counts, native_control$mean, col="pink", type="l")
 lines(container_counts, native_monitored$mean, col="purple", type="l")
 lines(container_counts, container_control$mean, col="lightblue", type="l")
 lines(container_counts, container_monitored$mean, col="blue", type="l")
-lines(container_counts, corrected$mean, col="black", type="l")
+lines(container_counts, container_corrected$mean, col="black", type="l")
+lines(container_counts, native_corrected$mean, col="gray", type="l")
 
 legend("topleft",
-  legend=c("native control", "native monitored", "container control", "container monitored", "container corrected"),
-  col=c("pink", "purple", "lightblue", "blue", "black"),
+  legend=c("native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
+  col=c("pink", "purple", "lightblue", "blue", "black", "gray"),
   cex=0.8,
   lty=1,
   bg="white")
@@ -103,11 +109,12 @@ lines(container_counts, native_control$median, col="pink", type="l")
 lines(container_counts, native_monitored$median, col="purple", type="l")
 lines(container_counts, container_control$median, col="lightblue", type="l")
 lines(container_counts, container_monitored$median, col="blue", type="l")
-lines(container_counts, corrected$median, col="black", type="l")
+lines(container_counts, container_corrected$median, col="black", type="l")
+lines(container_counts, native_corrected$median, col="gray", type="l")
 
 legend("topleft",
-  legend=c("native control", "native monitored", "container control", "container monitored", "container corrected"),
-  col=c("pink", "purple", "lightblue", "blue", "black"),
+  legend=c("native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
+  col=c("pink", "purple", "lightblue", "blue", "black", "gray"),
   cex=0.8,
   lty=1,
   bg="white")
