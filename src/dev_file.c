@@ -142,7 +142,7 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
     snprintf(line_buf,
              MACE_MAX_LINE_LEN,
              "[%llu] %s: %llu\n",
-             mace_cycles_to_ns(lat->ts),
+             mace_cycles_to_ns(lat->ts) & 0xFFFFFFFF, // Masking to 32-bits for R
              mace_latency_type_str(lat->type),
              mace_cycles_to_ns(lat->latency));
     lat++;

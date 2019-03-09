@@ -15,6 +15,8 @@ if (length(args) != 1) {
   stop("Need path to data")
 }
 
+options(digits=22)
+
 data_path <- args[1]
 SAVED_DATA_PATH <- paste(data_path, "/saved_r_data", sep="")
 SUMMARY_DATA_PATH <- paste(data_path, "/summary", sep="")
@@ -118,6 +120,12 @@ if (file.exists(SAVED_DATA_PATH)) {
         read <- 1
       }
 
+      # Branch for native monitored
+      if (length(grep("native_monitored", line)) != 0) {
+        latencies$native <- append(latencies$native, read_latency(line))
+        read <- 1
+      }
+
     }
 
     # Print per-file message
@@ -133,7 +141,8 @@ if (file.exists(SAVED_DATA_PATH)) {
 #
 # Crude application of latency data to container monitored RTT
 #
-corrected <- rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency)
+container_corrected <- rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency)
+native_corrected <- rtts$native_monitored$rtt - (latencies$native$ingress$latency + latencies$native$egress$latency)
 
 
 #
@@ -151,9 +160,12 @@ dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
 	  container_monitored=list(mean=mean(rtts$container_monitored$rtt),
 				   sd=sd(rtts$container_monitored$rtt),
 				   median=median(rtts$container_monitored$rtt)),
-	  corrected=list(mean=mean(corrected),
-			 sd=sd(corrected),
-			 median=median(corrected))),
+	  container_corrected=list(mean=mean(container_corrected),
+			 sd=sd(container_corrected),
+			 median=median(container_corrected)),
+	  native_corrected=list(mean=mean(native_corrected),
+			 sd=sd(native_corrected),
+			 median=median(native_corrected))),
      file=SUMMARY_DATA_PATH)
 
 #
@@ -170,16 +182,14 @@ lines(ecdf(rtts$native_monitored$rtt), col="purple", do.points=F, verticals=T)
 lines(ecdf(rtts$container_control$rtt), col="lightblue", do.points=F, verticals=T)
 lines(ecdf(rtts$container_monitored$rtt), col="blue", do.points=F, verticals=T)
 
-lines(ecdf(corrected), col="black", do.point=F, verticals=T)
+lines(ecdf(container_corrected), col="black", do.point=F, verticals=T)
+lines(ecdf(native_corrected), col="gray", do.point=F, verticals=T)
 
 legend("bottomright",
-  legend=c("native control", "native monitored", "container control", "container monitored", "container corrected"),
-  col=c("pink", "purple", "lightblue", "blue", "black"),
+  legend=c("native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
+  col=c("pink", "purple", "lightblue", "blue", "black", "gray"),
   cex=0.8,
   lty=1,
   bg="white")
 dev.off()
 cat("Done.\n")
-
-
-

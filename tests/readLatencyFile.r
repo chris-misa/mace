@@ -30,5 +30,7 @@ readLatencyFile <- function(filePath) {
     }
   }
   close(con)
-  list(egress=data.frame(latency=egress, ts=ts), ingress=data.frame(latency=ingress, ts=ts))
+  egress <- data.frame(latency=egress, ts=ts)
+  ingress <- data.frame(latency=ingress, ts=ts)
+  list(egress=egress, ingress=ingress)
 }

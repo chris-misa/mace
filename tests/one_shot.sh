@@ -9,6 +9,7 @@ echo "container_control.ping" >> $MANIFEST
 echo "native_monitored.ping" >> $MANIFEST
 echo "container_monitored.ping" >> $MANIFEST
 echo "container_monitored.lat" >> $MANIFEST
+echo "native_monitored.lat" >> $MANIFEST
 
 for i in `seq 1 $NUM_ROUNDS`
 do
@@ -49,16 +50,9 @@ do
   [ $? -eq 0 ] || { echo "Failed to insert module"; exit; }
   echo "  Inserted module"
 
-  docker run -itd --name=$PING_CONTAINER_NAME \
-                  --device /dev/mace:/dev/mace \
-                  -v /sys/class/mace:/mace \
-                  --entrypoint=/bin/bash \
-                  $PING_CONTAINER_IMAGE \
-                  > /dev/null
-  echo "  Ping container up"
-  docker exec $PING_CONTAINER_NAME \
-    bash -c 'echo 1 > /mace/on'
-  echo "  Mace active in ping container"
+
+  echo 1 > /sys/class/mace/on
+  echo "  Mace active in native net namespace"
 
   $PAUSE_CMD
 
@@ -67,6 +61,24 @@ do
   #
   $NATIVE_PING_CMD $PING_ARGS $TARGET >> native_monitored.ping
   echo "  Took native monitored"
+
+  cat /dev/mace >> native_monitored.lat
+  echo "  Retrieved native latencies"
+
+  echo 0 > /sys/class/mace/on
+  echo "  Mace detached in native net namespace"
+
+  docker run -itd --name=$PING_CONTAINER_NAME \
+                  --device /dev/mace:/dev/mace \
+                  -v /sys/class/mace:/mace \
+                  --entrypoint=/bin/bash \
+                  $PING_CONTAINER_IMAGE \
+                  > /dev/null
+  echo "  Ping container up"
+
+  docker exec $PING_CONTAINER_NAME \
+    bash -c 'echo 1 > /mace/on'
+  echo "  Mace active in ping container"
 
   $PAUSE_CMD
 
