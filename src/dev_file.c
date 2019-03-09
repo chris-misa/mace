@@ -15,8 +15,11 @@
 //
 #define mace_cycles_to_ns(c) (((c) * 1000000) / tsc_khz)
 
-// Defined in module.c
-extern struct list_head mace_active_ns;
+//
+// Set of mace-active namespaces
+// Defined in namespace_set.c
+//
+extern struct radix_tree_root mace_namespaces;
 
 DECLARE_WAIT_QUEUE_HEAD(mace_latency_read_queue);
 static int latency_queue_is_open = 0;
@@ -128,14 +131,13 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
 
   int res;
   int read = 0;
-  struct mace_ns_list *ns = NULL;
+  struct mace_namespace_entry *ns = NULL;
   struct mace_latency_event lat;
-  unsigned long cur_nsid = current->nsproxy->net_ns->ns.inum;
 
   // If the line buffer is empty, get a new latency event from queue
   if (!line_ptr || *line_ptr == '\0') {
 
-    mace_get_ns(cur_nsid, mace_active_ns, &ns);
+    ns = mace_get_ns(&mace_namespaces, current->nsproxy->net_ns->ns.inum);
     if (ns == NULL) {
       // This namespace is not in mace_active_ns list
       return 0;
@@ -188,9 +190,9 @@ on_show(struct class *class,
   ssize_t offset = 0;
   int res = 0;
 
-  mace_lookup_ns(current->nsproxy->net_ns->ns.inum,
-                 mace_active_ns,
-                 &res);
+  if (mace_get_ns(&mace_namespaces, current->nsproxy->net_ns->ns.inum) != NULL) {
+    res = 1;
+  }
 
   // Look up this namespace's status and print report
   offset += snprintf(buf + offset,
@@ -208,6 +210,7 @@ on_store(struct class *class,
 {
   int req;
   unsigned long nsid;
+  int res;
 
   if (kstrtoint(buf, 0, &req) == 0) {
 
@@ -215,13 +218,28 @@ on_store(struct class *class,
     nsid = current->nsproxy->net_ns->ns.inum;
 
     if (req == 0) {
-      mace_del_ns(nsid, mace_active_ns);
+      mace_del_ns(&mace_namespaces, nsid);
       printk(KERN_INFO "Mace: removed nsid: %lu\n", nsid);
 
     } else {
-      mace_add_ns(nsid, mace_active_ns);
-      printk(KERN_INFO "Mace: added nsid: %lu\n", nsid);
+      if ((res = mace_add_ns(&mace_namespaces, nsid)) == 0) {
+        printk(KERN_INFO "Mace: added nsid: %lu\n", nsid);
+      } else {
+        switch (res) {
+          case -ENOMEM:
+            printk(KERN_INFO "Mace: faild to add nsid %lu: no memory\n", nsid);
+            break;
+          case -EEXIST:
+            printk(KERN_INFO "Mace: faild to add nsid %lu: already exists\n", nsid);
+            break;
+          default:
+            printk(KERN_INFO "Mace: faild to add nsid %lu: unknown error: %d\n", nsid, res);
+            break;
+        }
+      }
     }
   }
+
+  // Regardless of what happened, claim to have used entire buffer
   return count;
 }

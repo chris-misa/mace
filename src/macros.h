@@ -14,18 +14,9 @@
 #include <asm/bitops.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
-#include <linux/list.h>
+#include <linux/radix-tree.h>
 
 #include "ring_buffer.h"
-
-//
-// Active namespace list struct
-//
-struct mace_ns_list {
-  unsigned long ns_id;
-  struct mace_ring_buffer buf;
-  struct list_head list;
-};
 
 // Syscall numbers. . .waiting for a better day
 #define SYSCALL_SENDTO 44
@@ -38,87 +29,12 @@ struct mace_ns_list {
 #define mace_set_foreach(bit, set) \
   for_each_set_bit(bit, &(set), sizeof(set))
 
-
-#define mace_add_ns(nsid, target_list) \
-{ \
-  struct mace_ns_list *n = \
-      (struct mace_ns_list *)kmalloc(sizeof(struct mace_ns_list), GFP_KERNEL); \
-  if (!n) { \
-    printk(KERN_INFO "Mace: failed to add item to nsid list\n"); \
-  } else { \
-    mace_ring_buffer_init(&n->buf); \
-    n->ns_id = (nsid); \
-    list_add(&n->list, &(target_list)); \
-  } \
-}
-
-// void mace_lookup_ns(unsigned long nsid,
-//                     struct list_head target_list,
-//                     int *result)
-#define mace_lookup_ns(nsid, target_list, result) \
-{ \
-  struct list_head *p; \
-  struct mace_ns_list *n; \
-  *(result) = 0; \
-  list_for_each(p, &(target_list)) { \
-    n = list_entry(p, struct mace_ns_list, list); \
-    if ((nsid) == n->ns_id) { \
-      *(result) = 1; \
-      break; \
-    } \
-  } \
-}
-
-// void mace_get_ns(unsigned long nsid,
-//                  struct list_head target_list,
-//                  struct mace_ns_list **result)
-#define mace_get_ns(nsid, target_list, result) \
-{ \
-  struct list_head *p; \
-  struct mace_ns_list *n; \
-  *(result) = NULL; \
-  list_for_each(p, &(target_list)) { \
-    n = list_entry(p, struct mace_ns_list, list); \
-    if ((nsid) == n->ns_id) { \
-      *(result) = n; \
-      break; \
-    } \
-  } \
-}
-
-#define mace_del_ns(nsid, target_list) \
-{ \
-  struct list_head *p; \
-  struct list_head *q; \
-  struct mace_ns_list *n; \
-  list_for_each_safe(p, q, &(target_list)) { \
-    n = list_entry(p, struct mace_ns_list, list); \
-    if (n->ns_id == nsid) { \
-      list_del(p); \
-      kfree(n); \
-      break; \
-    } \
-  } \
-}
-
-#define mace_del_all_ns(target_list) \
-{ \
-  struct list_head *p; \
-  struct list_head *q; \
-  struct mace_ns_list *n; \
-  list_for_each_safe(p, q, &(target_list)) { \
-    n = list_entry(p, struct mace_ns_list, list); \
-    list_del(p); \
-    kfree(n); \
-  } \
-}
-
 /*
  * Register entry of packet into latency segment.
  *
  *   table: name of static table
  *   key: key generated from packet data
- *   ns: struct mace_ns_list pointer or NULL
+ *   ns: struct mace_namespace_entry pointer or NULL
  *
  */
 #define register_entry(table, key, ns_ptr) \
@@ -140,14 +56,14 @@ struct mace_ns_list {
  *   hash_table: the kernel hash table object
  *   key: hash key
  *   direction: mace_latency_type to hand to mace_push_event()
- *   ns: struct mace_ns_list pointer or NULL
+ *   ns: struct mace_namespace_entry pointer or NULL
  */
 #define register_exit(table, key, direction, ns_ptr) \
 { \
   int index = hash_min((key), MACE_LATENCY_TABLE_BITS); \
   unsigned long long enter = 0; \
   unsigned long long dt = 0; \
-  struct mace_ns_list *saved_ns = NULL; \
+  struct mace_namespace_entry *saved_ns = NULL; \
   unsigned long flags; \
   \
   spin_lock_irqsave(&table[index].lock, flags); \
@@ -172,7 +88,5 @@ struct mace_ns_list {
     } \
   } \
 }
-
-
 
 #endif

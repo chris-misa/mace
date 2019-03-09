@@ -24,25 +24,31 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Misa <cmisa@cs.uoregon.edu>");
 MODULE_DESCRIPTION("Test of sysfs file system");
 
+//
+// Module life-cycle functions
+//
 int __init mace_mod_init(void);
 void __exit mace_mod_exit(void);
 module_init(mace_mod_init);
 module_exit(mace_mod_exit);
 
+//
 // Param: Outer device id
+//
 static int outer_dev = -1;
 module_param(outer_dev, int, 0);
 MODULE_PARM_DESC(outer_dev, "Device id of the outer device");
 
 //
-// Network device set
+// Network device set (bitmap)
 //
 static unsigned long outer_devs = 0;
 
 //
-// Active namespace list
+// Set of mace-active namespaces
+// Defined in namespace_set.c
 //
-struct list_head mace_active_ns;
+extern struct radix_tree_root mace_namespaces;
 
 //
 // Tracepoint pointers kept for cleanup
@@ -60,7 +66,7 @@ static struct tracepoint *sys_exit_tracepoint;
 
 struct mace_latency {
   unsigned long long enter;
-  struct mace_ns_list *ns;
+  struct mace_namespace_entry *ns;
   int valid;
   u64 key;
   spinlock_t lock;
@@ -95,16 +101,15 @@ init_mace_tables(void)
 static void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
+  struct mace_namespace_entry *ns = NULL;
   u64 key;
-  unsigned long ns_id;
   struct res;
-  struct mace_ns_list *ns = NULL;
 
+  // Filter for sendto syscalls
   if (id == SYSCALL_SENDTO) {
     
     // Filter by net namespace id
-    ns_id = current->nsproxy->net_ns->ns.inum;
-    mace_get_ns(ns_id, mace_active_ns, &ns);
+    ns = mace_get_ns(&mace_namespaces, current->nsproxy->net_ns->ns.inum);
     if (ns != NULL) {
 
       // Assuming user messages starts at beginning of payload
@@ -198,19 +203,17 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 static void
 probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
-  unsigned long ns_id;
   struct user_msghdr msg;
   struct iovec iov;
   struct iphdr ip;
   u64 key;
-  struct mace_ns_list *ns = NULL;
+  struct mace_namespace_entry *ns = NULL;
 
   // Filter by syscall number
   if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
 
     // Filter by net namespace id
-    ns_id = current->nsproxy->net_ns->ns.inum;
-    mace_get_ns(ns_id, mace_active_ns, &ns);
+    ns = mace_get_ns(&mace_namespaces, current->nsproxy->net_ns->ns.inum);
     if (ns != NULL) {
 
       copy_from_user(&msg, (void *)regs->si, sizeof(struct user_msghdr));
@@ -283,7 +286,6 @@ mace_mod_init(void)
   net_dev_start_xmit_tracepoint = NULL;
   netif_receive_skb_tracepoint = NULL;
   sys_exit_tracepoint = NULL;
-  INIT_LIST_HEAD(&mace_active_ns);
 
   // Check for required parameters
   if (outer_dev < 0) {
@@ -339,8 +341,8 @@ mace_mod_exit(void)
   // Cleanup device files
   mace_free_dev();
 
-  // Free active entries
-  mace_del_all_ns(mace_active_ns);
+  // Free active namespace entries
+  mace_del_all_ns(&mace_namespaces);
 
   printk(KERN_INFO "Mace: stopped.\n");
 }
