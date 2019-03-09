@@ -118,16 +118,17 @@ struct mace_ns_list {
  *
  *   table: name of static table
  *   key: key generated from packet data
+ *   ns: struct mace_ns_list pointer or NULL
  *
  */
-#define register_entry(table, key, nsid) \
+#define register_entry(table, key, ns_ptr) \
 { \
   int index = hash_min((key), MACE_LATENCY_TABLE_BITS); \
   long unsigned flags; \
   \
   spin_lock_irqsave(&table[index].lock, flags); \
   table[index].enter = rdtsc(); \
-  table[index].ns_id = nsid; \
+  table[index].ns = ns_ptr; \
   table[index].key = (key); \
   table[index].valid = 1; \
   spin_unlock_irqrestore(&table[index].lock, flags); \
@@ -139,21 +140,20 @@ struct mace_ns_list {
  *   hash_table: the kernel hash table object
  *   key: hash key
  *   direction: mace_latency_type to hand to mace_push_event()
- *   nsid: net namespace id of current context or 0
+ *   ns: struct mace_ns_list pointer or NULL
  */
-#define register_exit(table, key, direction, nsid) \
+#define register_exit(table, key, direction, ns_ptr) \
 { \
   int index = hash_min((key), MACE_LATENCY_TABLE_BITS); \
   unsigned long long enter = 0; \
   unsigned long long dt = 0; \
-  unsigned long saved_nsid = 0; \
+  struct mace_ns_list *saved_ns = NULL; \
   unsigned long flags; \
-  struct mace_ns_list *ns; \
   \
   spin_lock_irqsave(&table[index].lock, flags); \
   if (table[index].key == (key) && table[index].valid) { \
     enter = table[index].enter; \
-    saved_nsid = table[index].ns_id; \
+    saved_ns = table[index].ns; \
     table[index].valid = 0; \
     spin_unlock_irqrestore(&table[index].lock, flags); \
     \
@@ -163,11 +163,13 @@ struct mace_ns_list {
   } \
   \
   if (dt != 0) { \
-    if (saved_nsid == 0) { \
-      saved_nsid = nsid; \
+    if (saved_ns == NULL && ns_ptr != NULL) { \
+      saved_ns = ns_ptr; \
     } \
-    mace_get_ns(saved_nsid, mace_active_ns, &ns); \
-    mace_push_event(&ns->buf, dt, direction, saved_nsid, enter); \
+    \
+    if (saved_ns != NULL) { \
+      mace_push_event(&saved_ns->buf, dt, direction, saved_ns->ns_id, enter); \
+    } \
   } \
 }
 

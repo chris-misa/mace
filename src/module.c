@@ -60,7 +60,7 @@ static struct tracepoint *sys_exit_tracepoint;
 
 struct mace_latency {
   unsigned long long enter;
-  unsigned long ns_id;
+  struct mace_ns_list *ns;
   int valid;
   u64 key;
   spinlock_t lock;
@@ -97,20 +97,21 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
   u64 key;
   unsigned long ns_id;
-  int res;
+  struct res;
+  struct mace_ns_list *ns = NULL;
 
   if (id == SYSCALL_SENDTO) {
     
     // Filter by net namespace id
     ns_id = current->nsproxy->net_ns->ns.inum;
-    mace_lookup_ns(ns_id, mace_active_ns, &res);
-    if (res) {
+    mace_get_ns(ns_id, mace_active_ns, &ns);
+    if (ns != NULL) {
 
       // Assuming user messages starts at beginning of payload
       // This will probably not be true for layer 4 sockets
       // key = *((u64 *)regs->si);
       copy_from_user(&key, (void *)regs->si, sizeof(u64));
-      register_entry(egress_latencies, key, ns_id);
+      register_entry(egress_latencies, key, ns);
     }
   }
 }
@@ -132,7 +133,7 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
     check_ipv4(ip);
 
     key =*((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
-    register_exit(egress_latencies, key, MACE_LATENCY_EGRESS, 0);
+    register_exit(egress_latencies, key, MACE_LATENCY_EGRESS, NULL);
 
 #ifdef DEBUG
     printk(KERN_INFO "Mace: net_dev_start_xmit key: %016llX\n", key);
@@ -174,7 +175,7 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 
     
     key = *((u64 *)(skb->data + ip->ihl * 4));
-    register_entry(ingress_latencies, key, 0);
+    register_entry(ingress_latencies, key, NULL);
 
 #ifdef DEBUG
     printk(KERN_INFO "Mace: netif_receive_skb key: %016llX\n", key);
@@ -198,19 +199,19 @@ static void
 probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
   unsigned long ns_id;
-  int res;
   struct user_msghdr msg;
   struct iovec iov;
   struct iphdr ip;
   u64 key;
+  struct mace_ns_list *ns = NULL;
 
   // Filter by syscall number
   if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
 
     // Filter by net namespace id
     ns_id = current->nsproxy->net_ns->ns.inum;
-    mace_lookup_ns(ns_id, mace_active_ns, &res);
-    if (res) {
+    mace_get_ns(ns_id, mace_active_ns, &ns);
+    if (ns != NULL) {
 
       copy_from_user(&msg, (void *)regs->si, sizeof(struct user_msghdr));
       copy_from_user(&iov, msg.msg_iov, sizeof(struct iovec));
@@ -223,7 +224,7 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
         return;
       }
       copy_from_user(&key, iov.iov_base + ip.ihl * 4, 8);
-      register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns_id);
+      register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns);
 
 #ifdef DEBUG
       printk(KERN_INFO "Mace: sys_exit key: %016llX\n", key);
