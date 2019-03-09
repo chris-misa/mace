@@ -13,7 +13,7 @@ struct mace_ring_buffer mace_buf = {
 };
 
 void
-mace_init_ring_buffer(struct mace_ring_buffer *rb)
+mace_ring_buffer_init(struct mace_ring_buffer *rb)
 {
   int i;
   for (i = 0; i < MACE_EVENT_QUEUE_SIZE; i++) {
