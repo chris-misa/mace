@@ -67,7 +67,7 @@ mace_pop_event(struct mace_ring_buffer *buf, struct mace_latency_event *evt)
   }
 
   // Increment read head
-  r = atomic_inc_read(&buf->read);
+  r = atomic_inc_return(&buf->read);
   atomic_and(MACE_EVENT_QUEUE_MASK, &buf->read);
 
   // Mark start of read
