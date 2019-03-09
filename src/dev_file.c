@@ -125,28 +125,39 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
 {
   static char line_buf[MACE_MAX_LINE_LEN];
   static char *line_ptr = NULL;
-  static int i = 0;
 
+  int res;
   int read = 0;
-  struct mace_latency_event *lat = mace_get_buf()->queue + i;
+  struct mace_ns_list *ns = NULL;
+  struct mace_latency_event lat;
   unsigned long cur_nsid = current->nsproxy->net_ns->ns.inum;
 
+  // If the line buffer is empty, get a new latency event from queue
   if (!line_ptr || *line_ptr == '\0') {
-    while (lat->ns_id != cur_nsid && i < MACE_EVENT_QUEUE_SIZE) {
-      lat++;
-      i++;
+
+    mace_get_ns(cur_nsid, mace_active_ns, &ns);
+    if (ns == NULL) {
+      // This namespace is not in mace_active_ns list
+      return 0;
     }
-    if (i >= MACE_EVENT_QUEUE_SIZE) {
-      goto finished;
+
+    // Pop in a loop to handle write collisions
+    do {
+      res = mace_pop_event(&ns->buf, &lat);
+    } while (res == 1);
+
+    if (res == 2) {
+      // Queue is empty
+      return 0;
     }
+    
+    // Print into line buffer
     snprintf(line_buf,
              MACE_MAX_LINE_LEN,
              "[%llu] %s: %llu\n",
-             mace_cycles_to_ns(lat->ts) & 0xFFFFFFFF, // Masking to 32-bits for R
-             mace_latency_type_str(lat->type),
-             mace_cycles_to_ns(lat->latency));
-    lat++;
-    i++;
+             mace_cycles_to_ns(lat.ts),
+             mace_latency_type_str(lat.type),
+             mace_cycles_to_ns(lat.latency));
     line_ptr = line_buf;
   }
 
@@ -156,11 +167,6 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
     read++;
   }
   return read;
-
-finished:
-
-  i = 0;
-  return 0;
 }
 
 static ssize_t

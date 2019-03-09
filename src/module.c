@@ -307,9 +307,6 @@ mace_mod_init(void)
     return -1;
   }
 
-  // Initialize ring buffer
-  mace_init_ring_buffer();
-
   printk(KERN_INFO "Mace: running, buffering up to %d latencies.\n", MACE_EVENT_QUEUE_SIZE);
   return 0;
 }

@@ -16,11 +16,14 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 
+#include "ring_buffer.h"
+
 //
 // Active namespace list struct
 //
 struct mace_ns_list {
   unsigned long ns_id;
+  struct mace_ring_buffer buf;
   struct list_head list;
 };
 
@@ -43,11 +46,15 @@ struct mace_ns_list {
   if (!n) { \
     printk(KERN_INFO "Mace: failed to add item to nsid list\n"); \
   } else { \
+    mace_ring_buffer_init(&n->buf); \
     n->ns_id = (nsid); \
     list_add(&n->list, &(target_list)); \
   } \
 }
 
+// void mace_lookup_ns(unsigned long nsid,
+//                     struct list_head target_list,
+//                     int *result)
 #define mace_lookup_ns(nsid, target_list, result) \
 { \
   struct list_head *p; \
@@ -57,6 +64,23 @@ struct mace_ns_list {
     n = list_entry(p, struct mace_ns_list, list); \
     if ((nsid) == n->ns_id) { \
       *(result) = 1; \
+      break; \
+    } \
+  } \
+}
+
+// void mace_get_ns(unsigned long nsid,
+//                  struct list_head target_list,
+//                  struct mace_ns_list **result)
+#define mace_get_ns(nsid, target_list, result) \
+{ \
+  struct list_head *p; \
+  struct mace_ns_list *n; \
+  *(result) = NULL; \
+  list_for_each(p, &(target_list)) { \
+    n = list_entry(p, struct mace_ns_list, list); \
+    if ((nsid) == n->ns_id) { \
+      *(result) = n; \
       break; \
     } \
   } \
@@ -124,6 +148,7 @@ struct mace_ns_list {
   unsigned long long dt = 0; \
   unsigned long saved_nsid = 0; \
   unsigned long flags; \
+  struct mace_ns_list *ns; \
   \
   spin_lock_irqsave(&table[index].lock, flags); \
   if (table[index].key == (key) && table[index].valid) { \
@@ -141,7 +166,8 @@ struct mace_ns_list {
     if (saved_nsid == 0) { \
       saved_nsid = nsid; \
     } \
-    mace_push_event(dt, direction, saved_nsid, enter); \
+    mace_get_ns(saved_nsid, mace_active_ns, &ns); \
+    mace_push_event(&ns->buf, dt, direction, saved_nsid, enter); \
   } \
 }
 

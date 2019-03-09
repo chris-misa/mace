@@ -13,11 +13,11 @@ struct mace_ring_buffer mace_buf = {
 };
 
 void
-mace_init_ring_buffer(void)
+mace_init_ring_buffer(struct mace_ring_buffer *rb)
 {
   int i;
   for (i = 0; i < MACE_EVENT_QUEUE_SIZE; i++) {
-    atomic_set(&mace_buf.queue[i].in_write, 0);
+    atomic_set(&rb->queue[i].writing, 1);
   }
 }
 
@@ -37,51 +37,58 @@ mace_latency_type_str(mace_latency_type type)
   }
 }
 
-struct mace_ring_buffer *
-mace_get_buf(void)
-{
-  return &mace_buf;
-}
-
 __always_inline void
-mace_push_event(unsigned long long latency,
+mace_push_event(struct mace_ring_buffer *buf,
+                unsigned long long latency,
                 mace_latency_type type,
                 unsigned long ns_id,
                 unsigned long long ts)
 {
   int w;
 
-  // Repeated 'and' operation for race safety without locking
-  w = atomic_inc_return(&mace_buf.write) & MACE_EVENT_QUEUE_MASK;
-  atomic_and(MACE_EVENT_QUEUE_MASK, &mace_buf.write);
+  // Double 'and' for race-safe modular arithmetic without locking
+  w = atomic_inc_return(&buf->write) & MACE_EVENT_QUEUE_MASK;
+  atomic_and(MACE_EVENT_QUEUE_MASK, &buf->write);
 
-  atomic_inc(&mace_buf.queue[w].in_write);
+  // Let any reading threads know we're changing this entry
+  atomic_set(&buf->queue[w].writing, 1);
 
-  mace_buf.queue[w].latency = latency;
-  mace_buf.queue[w].type = type;
-  mace_buf.queue[w].ns_id = ns_id;
-  mace_buf.queue[w].ts = ts;
-
-  atomic_dec(&mace_buf.queue[w].in_write);
+  // Write in the data (member-wise to avoid in_read)
+  buf->queue[w].latency = latency;
+  buf->queue[w].type = type;
+  buf->queue[w].ns_id = ns_id;
+  buf->queue[w].ts = ts;
 }
 
-struct mace_latency_event *
-mace_pop_event(void)
+int
+mace_pop_event(struct mace_ring_buffer *buf, struct mace_latency_event *evt)
 {
-  /*
-  struct mace_latency_event *ret = mace_buf.queue + mace_buf.read;
-  if (mace_buf.read == mace_buf.write) {
-    return NULL;
-  } else {
-    mace_buf.read = (mace_buf.read + 1) % MACE_EVENT_QUEUE_SIZE;
-    return ret;
+  int r;
+
+  // Double 'and' for race-safe modular arithmetic without locking
+  r = atomic_inc_return(&buf->read) & MACE_EVENT_QUEUE_MASK;
+  atomic_and(MACE_EVENT_QUEUE_MASK, &buf->read);
+
+  // Check for empty queue
+  if (r == atomic_read(&buf->write)) {
+    return 2;
   }
-  */
-  return NULL;
+
+  // Mark start of read
+  atomic_set(&buf->queue[r].writing, 0);
+
+  // Read out the data
+  evt->latency = buf->queue[r].latency;
+  evt->type = buf->queue[r].type;
+  evt->ns_id = buf->queue[r].ns_id;
+  evt->ts = buf->queue[r].ts;
+
+  // Return 0 only if no writes hit this element
+  return atomic_xchg(&buf->queue[r].writing, 1);
 }
 
 void
-mace_buffer_clear(void)
+mace_buffer_clear(struct mace_ring_buffer *buf)
 {
-  mace_buf.read = mace_buf.write;
+  atomic_set(&buf->read, atomic_read(&buf->write));
 }
