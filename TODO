@@ -1,13 +1,6 @@
-Synchronization Issues:
+1) Dynamically allocate ring buffers for each tracked namespace
+  Maybe a case for using struct idr?
 
-  between intra-kernal tracking and userspace ring buffer.
+2) Implement possibly failing pop function on ring buffers
 
-    Maybe use 'writing' bit to keep readers off of currently writing entries?
-    Allow for pipe-style reading rather than buffer dumping style.
-
-
-Separation of to userspace ring buffer by namespace (to allow for independent clearing).
-Maybe a case for using struct idr?
-
-Add latencies pipe (blocking reads) file to sysfs.
-
+3) Rewrite dev file driver to try to pop a new entry when it's string buffer runs out

@@ -22,6 +22,7 @@ struct mace_latency_event {
   unsigned long long ts;
   mace_latency_type type;
   unsigned long ns_id;
+  atomic_t in_write;
 };
 
 #define MACE_EVENT_QUEUE_BITS 16 // Must be less than sizeof(atomic_t) * 8
@@ -33,6 +34,8 @@ struct mace_ring_buffer {
   atomic_t read;
   atomic_t write;
 };
+
+void mace_init_ring_buffer(void);
 
 struct mace_ring_buffer * mace_get_buf(void);
 void mace_push_event(unsigned long long latency,
