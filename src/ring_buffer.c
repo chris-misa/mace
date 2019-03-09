@@ -64,10 +64,9 @@ int
 mace_pop_event(struct mace_ring_buffer *buf, struct mace_latency_event *evt)
 {
   int r;
+  int res;
 
-  // Double 'and' for race-safe modular arithmetic without locking
-  r = atomic_inc_return(&buf->read) & MACE_EVENT_QUEUE_MASK;
-  atomic_and(MACE_EVENT_QUEUE_MASK, &buf->read);
+  r = atomic_read(&buf->read);
 
   // Check for empty queue
   if (r == atomic_read(&buf->write)) {
@@ -83,8 +82,14 @@ mace_pop_event(struct mace_ring_buffer *buf, struct mace_latency_event *evt)
   evt->ns_id = buf->queue[r].ns_id;
   evt->ts = buf->queue[r].ts;
 
-  // Return 0 only if no writes hit this element
-  return atomic_xchg(&buf->queue[r].writing, 1);
+  // Check if any writes hit this entry
+  res = atomic_xchg(&buf->queue[r].writing, 1);
+
+  // Increment read head
+  atomic_inc(&buf->read);
+  atomic_and(MACE_EVENT_QUEUE_MASK, &buf->read);
+
+  return res;
 }
 
 void
