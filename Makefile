@@ -1,5 +1,5 @@
 obj-m += mace.o
-mace-objs := src/module.o src/ring_buffer.o src/dev_file.o
+mace-objs := src/module.o src/ring_buffer.o src/dev_file.o src/namespace_set.o
 
 release := $(shell uname -r)
 

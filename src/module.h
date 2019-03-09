@@ -47,9 +47,9 @@
 #include <linux/types.h>
 #include <asm/atomic.h>
 
-
 #include "ring_buffer.h"
 #include "dev_file.h"
+#include "namespace_set.h"
 #include "macros.h"
 
 //
