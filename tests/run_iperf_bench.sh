@@ -4,15 +4,15 @@
 # Execute the one-shot routine once for a series of added iperf traffic pairs
 #
 
-IPERF_PAIRS_MAX=40
-IPERF_PAIRS_STEP=10
+IPERF_PAIRS_MAX=30
+IPERF_PAIRS_STEP=1
 
-export TARGET_CPU=0
-MAX_CPUS=20
+export TARGET_CPU=0 # Starting point to RR CPU assignment of iperf server / client pairs
+MAX_CPUS=20 # Total number of CPUs to use on this machine
 
 export B="===================="
 
-export NUM_ROUNDS=1
+export NUM_ROUNDS=3
 
 export PING_ARGS="-D -i 0.0 -s 1472 -c 2000"
 
@@ -33,6 +33,7 @@ export ADD_IPERF_PAIR_CMD="$(pwd)/add_container_iperf_pair.sh"
 # Probably need to wait till all data is gathered, then recursively go through manifest to run analysis
 #
 export ANALYSIS_CMD="Rscript report_one_shot.r"
+export FINAL_ANALYSIS_CMD="Rscript report_iperf_bench.r"
 
 export META_DATA="metadata"
 export MANIFEST="manifest"
@@ -82,9 +83,13 @@ docker stop `docker ps -aq` > /dev/null
 docker rm `docker ps -aq` > /dev/null
 
 echo "  Starting initial analysis"
+mkdir ${DATE_STR}/cdfs
 for i in `cat ${DATE_STR}/${MANIFEST}`
 do
 	$ANALYSIS_CMD ${DATE_STR}/${i}/
+	mv ${DATE_STR}/${i}/cdfs.pdf ${DATE_STR}/cdfs/${i}_cdfs.pdf
 done
+
+$FINAL_ANALYSIS_CMD ${DATE_STR}/
 
 echo Done.

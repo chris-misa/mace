@@ -140,15 +140,20 @@ corrected <- rtts$container_monitored$rtt - (latencies$container$ingress$latency
 # Write out summary stats
 #
 dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
-			      sd=sd(rtts$native_control$rtt)),
+			      sd=sd(rtts$native_control$rtt),
+			      median=median(rtts$native_control$rtt)),
 	  native_monitored=list(mean=mean(rtts$native_monitored$rtt),
-				sd=sd(rtts$native_monitored$rtt)),
+				sd=sd(rtts$native_monitored$rtt),
+				median=median(rtts$native_monitored$rtt)),
 	  container_control=list(mean=mean(rtts$container_control$rtt),
-				 sd=sd(rtts$container_control$rtt)),
+				 sd=sd(rtts$container_control$rtt),
+				 median=median(rtts$container_control$rtt)),
 	  container_monitored=list(mean=mean(rtts$container_monitored$rtt),
-				   sd=sd(rtts$container_monitored$rtt)),
+				   sd=sd(rtts$container_monitored$rtt),
+				   median=median(rtts$container_monitored$rtt)),
 	  corrected=list(mean=mean(corrected),
-			 sd=sd(corrected))),
+			 sd=sd(corrected),
+			 median=median(corrected))),
      file=SUMMARY_DATA_PATH)
 
 #
