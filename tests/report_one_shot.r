@@ -92,6 +92,11 @@ if (file.exists(SAVED_DATA_PATH)) {
         # Branch for native ping control files
         if (length(grep("control", line)) != 0) {
           rtts$native_control <- append(rtts$native_control, read_ping(line))
+          read <- 1
+        }
+
+        # Branch for native hardware ping results
+        if (length(grep("hardware", line)) != 0) {
           rtts$native_control_hw <- append(rtts$native_control_hw, read_hw_ping(line))
           read <- 1
         }

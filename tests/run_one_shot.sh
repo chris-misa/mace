@@ -19,6 +19,7 @@ export OUTER_DEV_ID=5
 export MACE_PATH=`echo ${PWD%${PWD##*/}}`
 
 export NATIVE_PING_CMD="${MACE_PATH}/iputils/ping"
+export NATIVE_PING_HW_CMD="${MACE_PATH}/iputils_hw/ping"
 export CONTAINER_PING_CMD="/iputils/ping"
 
 export PING_CONTAINER_IMAGE="chrismisa/slow-ping"

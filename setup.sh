@@ -48,3 +48,12 @@ git clone https://github.com/chris-misa/iputils.git
 pushd iputils
 make
 popd
+
+#
+# iputils for hardware timestamps
+#
+git clone https://github.com/chris-misa/iputils.git iputils_hw
+pushd iputils_hw
+git checkout hwtimestamp
+make
+popd
