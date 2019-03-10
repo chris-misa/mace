@@ -20,7 +20,7 @@ RADIX_TREE(mace_namespaces, GFP_KERNEL);
 //   -ENOMEM if faild to allocate memory
 //   -EEXIST if the ns id was already active
 //
-__always_inline int
+int
 mace_add_ns(struct radix_tree_root *namespaces, unsigned long ns_id)
 {
   struct mace_namespace_entry *ent = NULL;
@@ -49,7 +49,7 @@ cleanup_out:
 // Removes and frees the mace_namespace_entry associated with the given ns id
 // Fails silently if the ns id was not active
 //
-__always_inline void
+void
 mace_del_ns(struct radix_tree_root *namespaces, unsigned long ns_id)
 {
   struct mace_namespace_entry *ent;
@@ -62,7 +62,7 @@ mace_del_ns(struct radix_tree_root *namespaces, unsigned long ns_id)
 //
 // Removes and frees all entries mace_namespaces
 //
-__always_inline void
+void
 mace_del_all_ns(struct radix_tree_root *namespaces)
 {
   struct radix_tree_iter iter;

@@ -8,13 +8,14 @@
 
 export B="===================="
 
-export NUM_ROUNDS=5
+export NUM_ROUNDS=3
 
 export PING_ARGS="-D -i 0.0 -s 1472 -c 2000"
 
 export TARGET="10.10.1.2"
 
 export OUTER_DEV_ID=5
+export OUTER_DEV_NAME="ens1f1"
 
 export MACE_PATH=`echo ${PWD%${PWD##*/}}`
 

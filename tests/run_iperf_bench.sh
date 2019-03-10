@@ -5,22 +5,25 @@
 #
 
 IPERF_PAIRS_MAX=20
-IPERF_PAIRS_STEP=5
+IPERF_PAIRS_STEP=10
 
 export TARGET_CPU=0 # Starting point to RR CPU assignment of iperf server / client pairs
 MAX_CPUS=20 # Total number of CPUs to use on this machine
 
 export B="===================="
 
-export NUM_ROUNDS=5
+export NUM_ROUNDS=3
 
 export PING_ARGS="-D -i 0.0 -s 1472 -c 2000"
 
 export TARGET="10.10.1.2"
 
 export OUTER_DEV_ID=5
+export OUTER_DEV_NAME="ens1f1"
 
 export MACE_PATH=`echo ${PWD%${PWD##*/}}`
+
+export NATIVE_PING_HW_CMD="${MACE_PATH}/iputils_hw/ping"
 export NATIVE_PING_CMD="${MACE_PATH}/iputils/ping"
 export CONTAINER_PING_CMD="/iputils/ping"
 

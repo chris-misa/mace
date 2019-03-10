@@ -70,7 +70,7 @@ mace_push_event(struct mace_ring_buffer *buf,
   /* Let any reading threads know we're changing this entry */ \
   atomic_set(&(buf)->queue[w].writing, 1); \
   \
-  /* Write in the data (member-wise to avoid in_read) */ \
+  /* Write in the data (member-wise to avoid writing) */ \
   (buf)->queue[w].latency = new_latency; \
   (buf)->queue[w].type = new_type; \
   (buf)->queue[w].ns_id = new_ns_id; \

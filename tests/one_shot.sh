@@ -4,7 +4,7 @@
 # Mace test routine
 #
 
-echo "native_hardware.ping" >> $MANIFEST
+# echo "native_hardware.ping" >> $MANIFEST
 echo "native_control.ping" >> $MANIFEST
 echo "container_control.ping" >> $MANIFEST
 echo "native_monitored.ping" >> $MANIFEST
@@ -29,12 +29,20 @@ do
   #
   # Native Control base-lines
   #
-  taskset 0x1 $NATIVE_PING_HW_CMD $PING_ARGS $TARGET >> native_hardware.ping
-  echo "  Took native control with hardware timestamps"
+  # hwstamp_ctl -i $OUTER_DEV_NAME -r 1 -t 1 > /dev/null
+  # echo "  Hardware timestamps enabled"
+  # $PAUSE_CMD
+
+  # taskset 0x1 $NATIVE_PING_HW_CMD $PING_ARGS $TARGET >> native_hardware.ping
+  # echo "  Took native control with hardware timestamps"
+  # $PAUSE_CMD
+
+  # hwstamp_ctl -i $OUTER_DEV_NAME -r 0 -t 0 > /dev/null
+  # echo " Hardware timestamps disabled"
+  # $PAUSE_CMD
 
   taskset 0x1 $NATIVE_PING_CMD $PING_ARGS $TARGET >> native_control.ping
   echo "  Took native control"
-
   $PAUSE_CMD
 
   #
