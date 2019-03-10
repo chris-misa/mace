@@ -1,6 +1,1 @@
-1) Dynamically allocate ring buffers for each tracked namespace
-  Maybe a case for using struct idr?
-
-2) Implement possibly failing pop function on ring buffers
-
-3) Rewrite dev file driver to try to pop a new entry when it's string buffer runs out
+1) gettimeofday support for userspace timming synchronization

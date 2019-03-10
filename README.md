@@ -17,6 +17,7 @@ So far only tested on release 4.15.0.
 ```
 # insmod ./mace.ko outer_dev=<ifindex of outer network interface>
 ```
+The ifindex for any interface can be found with `ip l`
 
 ## Mace Interface
 
