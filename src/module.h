@@ -57,4 +57,9 @@
 //
 // #define DEBUG
 
+//
+// Rough synchronization of tsc to gettimeofday for later correlation
+//
+void mace_tsc_offset_resync(void);
+
 #endif

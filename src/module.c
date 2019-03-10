@@ -51,6 +51,11 @@ static unsigned long outer_devs = 0;
 extern struct radix_tree_root mace_namespaces;
 
 //
+// Record of approximate difference between tsc and gettimeofday clocks
+//
+struct timeval mace_tsc_offset;
+
+//
 // Tracepoint pointers kept for cleanup
 //
 static struct tracepoint *sys_enter_tracepoint;
@@ -273,6 +278,28 @@ test_and_set_traceprobe(struct tracepoint *tp, void *unused)
 }
 
 //
+// Rough synchronization of tsc to gettimeofday for later correlation
+//
+void
+mace_tsc_offset_resync(void)
+{
+  unsigned long long cur_tsc_usec;
+  unsigned long long usec_offset;
+
+  cur_tsc_usec = mace_cycles_to_ns(rdtsc()) / 1000;
+  do_gettimeofday(&mace_tsc_offset);
+  
+  // Do the carry in 64 bits to avoid wrapping arround
+  usec_offset = mace_tsc_offset.tv_usec;
+  while (cur_tsc_usec > usec_offset) {
+    usec_offset += 1000000;
+    mace_tsc_offset.tv_sec--;
+  }
+  usec_offset -= cur_tsc_usec;
+  mace_tsc_offset.tv_usec = usec_offset;
+}
+
+//
 // Module initialization
 //
 int __init
@@ -294,6 +321,7 @@ mace_mod_init(void)
     return ret;
   }
 
+  // Initialize skb tracking tables
   init_mace_tables();
  
   // Add initial params to dev sets for now
@@ -307,7 +335,12 @@ mace_mod_init(void)
     return -1;
   }
 
-  printk(KERN_INFO "Mace: running, buffering up to %d latencies.\n", MACE_EVENT_QUEUE_SIZE);
+  // Gettimeofday sync
+  mace_tsc_offset_resync();
+
+  printk(KERN_INFO "Mace: running, buffering up to %d latencies, tsc zero around %lu.%06lu.\n",
+           MACE_EVENT_QUEUE_SIZE,
+           mace_tsc_offset.tv_sec, mace_tsc_offset.tv_usec);
   return 0;
 }
 

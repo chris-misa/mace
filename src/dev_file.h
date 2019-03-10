@@ -23,6 +23,7 @@
 
 #include "ring_buffer.h"
 #include "namespace_set.h"
+#include "module.h"
 #include "macros.h"
 
 int mace_init_dev(void);

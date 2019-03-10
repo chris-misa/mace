@@ -10,26 +10,40 @@
 #define MACE_MAX_LINE_LEN 1024
 
 //
-// Report latency approximations in nano seconds
-// Cycles / (1 000 Cycles / sec) * (1 000 000 000 nsec / sec)
-//
-#define mace_cycles_to_ns(c) (((c) * 1000000) / tsc_khz)
-
-//
 // Set of mace-active namespaces
 // Defined in namespace_set.c
 //
 extern struct radix_tree_root mace_namespaces;
 
-DECLARE_WAIT_QUEUE_HEAD(mace_latency_read_queue);
-static int latency_queue_is_open = 0;
-int mace_latency_queue_major = -1;
-static struct cdev latency_queue_cdev;
-static struct class *latency_queue_class = NULL;
+//
+// Tsc gettimeofday offset
+//
+extern struct timeval mace_tsc_offset;
+
+
+//
+// 'mace/on' class attribute
+//
 static ssize_t on_show(struct class *class, struct class_attribute *attr, char *buf);
 static ssize_t on_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 CLASS_ATTR_RW(on);
 
+//
+// 'mace/sync' class attribute
+//
+static ssize_t sync_show(struct class *class, struct class_attribute *attr, char *buf);
+static ssize_t sync_store(struct class *class, struct class_attribute *attr, const char *but, size_t count);
+CLASS_ATTR_RW(sync);
+
+
+//
+// '/dev/mace' latencies file
+//
+DECLARE_WAIT_QUEUE_HEAD(mace_latency_read_queue); // Unused for now
+static int latency_queue_is_open = 0;
+int mace_latency_queue_major = -1;
+static struct cdev latency_queue_cdev;
+static struct class *latency_queue_class = NULL;
 
 static int latency_queue_open(struct inode *inode, struct file *fp);
 static int latency_queue_release(struct inode *inode, struct file *fp);
@@ -74,7 +88,11 @@ mace_init_dev(void)
   }
 
   if (class_create_file(latency_queue_class, &class_attr_on) < 0) {
-    printk(KERN_INFO "Mace: failed to create on class attribute\n");
+    printk(KERN_INFO "Mace: failed to create 'on' class attribute\n");
+    goto exit_error;
+  }
+  if (class_create_file(latency_queue_class, &class_attr_sync) < 0) {
+    printk(KERN_INFO "Mace: failed to create 'sync' class attribute\n");
     goto exit_error;
   }
 
@@ -179,8 +197,10 @@ latency_queue_write(struct file *fp, const char *buf, size_t len, loff_t *offset
   return -EINVAL;
 }
 
-//
 // Sysfs attribute functions
+
+//
+// 'mace/on' class attribute
 //
 static ssize_t
 on_show(struct class *class,
@@ -241,5 +261,29 @@ on_store(struct class *class,
   }
 
   // Regardless of what happened, claim to have used entire buffer
+  return count;
+}
+
+
+//
+// 'mace/sync' class attribute
+//
+static ssize_t
+sync_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+  ssize_t offset = 0;
+
+  offset += snprintf(buf + offset,
+                     PAGE_SIZE - offset,
+                     "%lu.%06lu\n",
+                     mace_tsc_offset.tv_sec,
+                     mace_tsc_offset.tv_usec);
+  return offset;
+}
+
+static ssize_t
+sync_store(struct class *class, struct class_attribute *attr, const char *but, size_t count)
+{
+  mace_tsc_offset_resync();
   return count;
 }

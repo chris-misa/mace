@@ -18,6 +18,12 @@
 
 #include "ring_buffer.h"
 
+//
+// Report latency approximations in nano seconds
+// Cycles / (1 000 Cycles / sec) * (1 000 000 000 nsec / sec)
+//
+#define mace_cycles_to_ns(c) (((c) * 1000000) / tsc_khz)
+
 // Syscall numbers. . .waiting for a better day
 #define SYSCALL_SENDTO 44
 #define SYSCALL_RECVMSG 47
