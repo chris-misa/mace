@@ -51,6 +51,10 @@ void mace_del_all_ns(struct radix_tree_root *namespaces);
 // Returns a pointer to the mace_namespace_entry associated with the given ns id
 // or NULL if the ns id is not active
 //
-struct mace_namespace_entry * mace_get_ns(struct radix_tree_root *namespaces, unsigned long ns_id);
+static __always_inline struct mace_namespace_entry *
+mace_get_ns(struct radix_tree_root *namespaces, unsigned long ns_id)
+{
+  return radix_tree_lookup(namespaces, ns_id);
+}
 
 #endif

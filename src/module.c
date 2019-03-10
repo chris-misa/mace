@@ -101,7 +101,7 @@ init_mace_tables(void)
 static void
 probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
-  struct mace_namespace_entry *ns = NULL;
+  struct mace_namespace_entry *ns;
   u64 key;
   struct res;
 
@@ -141,10 +141,9 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
     register_exit(egress_latencies, key, MACE_LATENCY_EGRESS, NULL);
 
 #ifdef DEBUG
-    printk(KERN_INFO "Mace: net_dev_start_xmit key: %016llX\n", key);
     {
-      unsigned char *d_ptr;
-      d_ptr = skb->data + sizeof(struct ethhdr) + 20;
+      unsigned char *d_ptr = skb->data + sizeof(struct ethhdr) + 20;
+      printk(KERN_INFO "Mace: net_dev_start_xmit key: %016llX\n", key);
       printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
           d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
           d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
@@ -167,7 +166,6 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 {
   struct iphdr *ip;
   u64 key;
-  unsigned char *d_ptr;
 
   // Filter for outer device
   if (skb->dev && mace_in_set(skb->dev->ifindex, outer_devs)) {
@@ -175,24 +173,24 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
     // Get key from payload bytes and store in ingress table
     ip = (struct iphdr *)(skb->data);
     check_ipv4(ip);
-
-    d_ptr = skb->data + 20;
-
     
     key = *((u64 *)(skb->data + ip->ihl * 4));
     register_entry(ingress_latencies, key, NULL);
 
 #ifdef DEBUG
-    printk(KERN_INFO "Mace: netif_receive_skb key: %016llX\n", key);
-    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		    d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
-		    d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
-    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		    d_ptr[8], d_ptr[9], d_ptr[10], d_ptr[11],
-		    d_ptr[12], d_ptr[13], d_ptr[14], d_ptr[15]);
-    printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		    d_ptr[16], d_ptr[17], d_ptr[18], d_ptr[19],
-		    d_ptr[20], d_ptr[21], d_ptr[22], d_ptr[23]);
+    {
+      unsigned char *d_ptr = skb->data + 20;
+      printk(KERN_INFO "Mace: netif_receive_skb key: %016llX\n", key);
+      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+          d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
+          d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
+      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+          d_ptr[8], d_ptr[9], d_ptr[10], d_ptr[11],
+          d_ptr[12], d_ptr[13], d_ptr[14], d_ptr[15]);
+      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+          d_ptr[16], d_ptr[17], d_ptr[18], d_ptr[19],
+          d_ptr[20], d_ptr[21], d_ptr[22], d_ptr[23]);
+    }
 #endif
   }
 }
@@ -230,10 +228,9 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
       register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns);
 
 #ifdef DEBUG
-      printk(KERN_INFO "Mace: sys_exit key: %016llX\n", key);
-
       {
         unsigned char *d_ptr = (unsigned char *)&key;
+        printk(KERN_INFO "Mace: sys_exit key: %016llX\n", key);
         printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
         d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
         d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);

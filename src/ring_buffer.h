@@ -51,11 +51,28 @@ char * mace_latency_type_str(mace_latency_type type);
 // Note: pushing to a full queue might loose a queue-full of data
 // need a race-safe method kick read head for overwrite semantics.
 //
-void mace_push_event(struct mace_ring_buffer *buf,
-                     unsigned long long latency,
-                     mace_latency_type type,
-                     unsigned long ns_id,
-                     unsigned long long ts);
+static __always_inline void
+mace_push_event(struct mace_ring_buffer *buf,
+                unsigned long long latency,
+                mace_latency_type type,
+                unsigned long ns_id,
+                unsigned long long ts)
+{
+  int w;
+
+  // Double 'and' for race-safe modular arithmetic without locking
+  w = atomic_inc_return(&buf->write) & MACE_EVENT_QUEUE_MASK;
+  atomic_and(MACE_EVENT_QUEUE_MASK, &buf->write);
+
+  // Let any reading threads know we're changing this entry
+  atomic_set(&buf->queue[w].writing, 1);
+
+  // Write in the data (member-wise to avoid in_read)
+  buf->queue[w].latency = latency;
+  buf->queue[w].type = type;
+  buf->queue[w].ns_id = ns_id;
+  buf->queue[w].ts = ts;
+}
 
 //
 // Pop (copy) the top off the given mace_ring_buffer
