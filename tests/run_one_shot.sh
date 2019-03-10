@@ -52,4 +52,4 @@ popd > /dev/null
 echo "  Generating graphs and analysis"
 $ANALYSIS_CMD $DATE_STR
 
-echo Done.
+echo $DATE_STR is done.

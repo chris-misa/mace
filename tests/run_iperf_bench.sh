@@ -95,4 +95,4 @@ done
 
 $FINAL_ANALYSIS_CMD ${DATE_STR}/
 
-echo Done.
+echo $DATE_STR is done.
