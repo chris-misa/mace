@@ -6,7 +6,7 @@
 
 apt-get update
 
-apt-get install -y r-base
+apt-get install -y r-base linuxptp
 
 # Set up docker
 apt-get install -y \

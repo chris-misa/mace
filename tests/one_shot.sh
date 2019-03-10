@@ -18,6 +18,7 @@ do
 
   docker run -itd --name=$PING_CONTAINER_NAME \
                   --entrypoint=/bin/bash \
+		  --cpuset-cpus=0-0 \
                   $PING_CONTAINER_IMAGE \
                   > /dev/null
   echo "  Ping container up"
@@ -27,7 +28,7 @@ do
   #
   # Native Control base-line
   #
-  $NATIVE_PING_CMD $PING_ARGS $TARGET >> native_control.ping
+  taskset 0x1 $NATIVE_PING_CMD $PING_ARGS $TARGET >> native_control.ping
   echo "  Took native control"
 
   $PAUSE_CMD
@@ -59,7 +60,7 @@ do
   #
   # Native Monitored for perturbation
   #
-  $NATIVE_PING_CMD $PING_ARGS $TARGET >> native_monitored.ping
+  taskset 0x1 $NATIVE_PING_CMD $PING_ARGS $TARGET >> native_monitored.ping
   echo "  Took native monitored"
 
   cat /dev/mace >> native_monitored.lat
@@ -72,6 +73,7 @@ do
                   --device /dev/mace:/dev/mace \
                   -v /sys/class/mace:/mace \
                   --entrypoint=/bin/bash \
+		  --cpuset-cpus=0-0 \
                   $PING_CONTAINER_IMAGE \
                   > /dev/null
   echo "  Ping container up"

@@ -5,6 +5,7 @@
 # Also computes container monitored - latencies 
 #
 source("readPingFile.r")
+source("readHWPingFile.r")
 source("readLatencyFile.r")
 
 #
@@ -27,6 +28,12 @@ SUMMARY_DATA_PATH <- paste(data_path, "/summary", sep="")
 read_ping <- function(line) {
   d <- readPingFile(paste(data_path, "/", line, sep=""))
   cat("Read ", length(d$rtt), " rtts from ", line, "\n")
+  d
+}
+
+read_hw_ping <- function(line) {
+  d <- readHWPingFile(paste(data_path, "/", line, sep=""))
+  cat("Read ", length(d$rtt), " hardware rtts from ", line, "\n")
   d
 }
 
@@ -57,6 +64,7 @@ if (file.exists(SAVED_DATA_PATH)) {
 
   rtts <- list(
     native_control = list(),
+    native_control_hw = list(),
     native_monitored = list(),
     container_control = list(),
     container_monitored = list()
@@ -84,6 +92,7 @@ if (file.exists(SAVED_DATA_PATH)) {
         # Branch for native ping control files
         if (length(grep("control", line)) != 0) {
           rtts$native_control <- append(rtts$native_control, read_ping(line))
+          rtts$native_control_hw <- append(rtts$native_control_hw, read_hw_ping(line))
           read <- 1
         }
 
@@ -144,6 +153,12 @@ if (file.exists(SAVED_DATA_PATH)) {
 container_corrected <- rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency)
 native_corrected <- rtts$native_monitored$rtt - (latencies$native$ingress$latency + latencies$native$egress$latency)
 
+#
+# Deal with sometimes not having hardware rtts
+#
+if (length(rtts$native_control_hw) == 0) {
+	rtts$native_control_hw = data.frame(rtt=c(0), ts=c(0))
+}
 
 #
 # Write out summary stats
@@ -151,6 +166,9 @@ native_corrected <- rtts$native_monitored$rtt - (latencies$native$ingress$latenc
 dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
 			      sd=sd(rtts$native_control$rtt),
 			      median=median(rtts$native_control$rtt)),
+          native_control_hw=list(mean=mean(rtts$native_control_hw$rtt),
+			      sd=sd(rtts$native_control_hw$rtt),
+			      median=median(rtts$native_control_hw$rtt)),
 	  native_monitored=list(mean=mean(rtts$native_monitored$rtt),
 				sd=sd(rtts$native_monitored$rtt),
 				median=median(rtts$native_monitored$rtt)),
@@ -177,6 +195,7 @@ plot(0, type="n", ylim=c(0,1), xlim=xbnds,
      xlab=expression(paste("RTT (",mu,"s)", sep="")),
      ylab="CDF",
      main="")
+lines(ecdf(rtts$native_control_hw$rtt), col="green", do.points=F, verticals=T)
 lines(ecdf(rtts$native_control$rtt), col="pink", do.points=F, verticals=T)
 lines(ecdf(rtts$native_monitored$rtt), col="purple", do.points=F, verticals=T)
 lines(ecdf(rtts$container_control$rtt), col="lightblue", do.points=F, verticals=T)
@@ -186,8 +205,8 @@ lines(ecdf(container_corrected), col="black", do.point=F, verticals=T)
 lines(ecdf(native_corrected), col="gray", do.point=F, verticals=T)
 
 legend("bottomright",
-  legend=c("native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
-  col=c("pink", "purple", "lightblue", "blue", "black", "gray"),
+  legend=c("hardware", "native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
+  col=c("green", "pink", "purple", "lightblue", "blue", "black", "gray"),
   cex=0.8,
   lty=1,
   bg="white")

@@ -4,9 +4,11 @@
 # Execute the one-shot routine in the current traffic environment
 #
 
+# Use hwstamp_ctl to request hardware time stamps on outer interface
+
 export B="===================="
 
-export NUM_ROUNDS=3
+export NUM_ROUNDS=5
 
 export PING_ARGS="-D -i 0.0 -s 1472 -c 2000"
 
