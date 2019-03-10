@@ -20,7 +20,8 @@ export TARGET="10.10.1.2"
 
 export OUTER_DEV_ID=5
 
-export NATIVE_PING_CMD="ping"
+export MACE_PATH=`echo ${PWD%${PWD##*/}}`
+export NATIVE_PING_CMD="${MACE_PATH}/iputils/ping"
 export CONTAINER_PING_CMD="/iputils/ping"
 
 export PING_CONTAINER_IMAGE="chrismisa/slow-ping"
@@ -38,7 +39,6 @@ export FINAL_ANALYSIS_CMD="Rscript report_iperf_bench.r"
 export META_DATA="metadata"
 export MANIFEST="manifest"
 
-export MACE_PATH=`echo ${PWD%${PWD##*/}}`
 
 export PAUSE_CMD="sleep 5"
 

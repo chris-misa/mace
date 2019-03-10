@@ -39,3 +39,12 @@ sudo chmod +x /usr/local/bin/docker-compose
 systemctl disable apparmor.service --now
 service apparmor teardown
 
+#
+# iputils
+#
+apt-get install -y libcap-dev libidn2-0-dev nettle-dev trace-cmd vnstat
+
+git clone https://github.com/chris-misa/iputils.git
+pushd iputils
+make
+popd
