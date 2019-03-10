@@ -10,21 +10,31 @@ Assuming the proper kernel headers are where they should be, just
 ```
 # make
 ```
+So far only tested on release 4.15.0.
 
 ## Run
 
 ```
-# insmod ./mace.ko
+# insmod ./mace.ko outer_dev=<ifindex of outer network interface>
 ```
 
 ## Mace Interface
 
-On inserting the module, a network namespace aware device file is created at /dev/mace.
-Reads from this device block, returning egress and ingress latencies in nanoseconds as they are computed by the module.
+Mace uses the kernel's device model to communicate per-packet latencies to userspace and to allow control of mace internals from userspace.
+The following files are created after module initilization:
 
-Generally containers will have to be granted access to this device. In docker, user `--device /dev/mace:/dev/mace` option.
+### /dev/
 
-### Knobs
+* `mace`
+
+Reads from this file return outstanding egress and ingress latencies for the current net namespace and remove them from the queue.
+
+* `mace_pipe`
+
+Reads from this file block, returning egress and ingress latencies in nanoseconds as they are computed by the module.
+
+
+### /sys/class/mace/
 
 * `mace_on`
 
@@ -32,3 +42,7 @@ Writing a non-zero value to this file enables mace for the current network
 namespace. Writing a zero disables mace. Reading shows status of current
 network namespace.
 
+## Containers
+
+Generally containers will need explicit permission to access the mace interface.
+In docker, user `--device /dev/mace:/dev/mace` and `-v /sys/class/mace:/sys/class/mace` to allow a container acces to both latencies and knobs.
