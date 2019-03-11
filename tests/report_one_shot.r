@@ -47,10 +47,14 @@ read_latency <- function(line) {
 #
 # Function to apply latency overheads to gathered RTTs
 #
-applyLatencies <- function(in_rtts, ingresses, egresses) {
+applyLatencies_OLD <- function(in_rtts, ingresses, egresses) {
 
-  ing_fun <- stepfun(ingresses$ts[-1], ingresses$latency)
-  egr_fun <- stepfun(egresses$ts[-1], egresses$latency)
+  #x_off <- (in_rtts$ts[[2]] - in_rtts$ts[[1]]) * 0.4
+  x_off <- 0
+
+  ing_fun <- stepfun(ingresses$ts[-1] - x_off, ingresses$latency)
+  egr_fun <- stepfun(egresses$ts[-1] - x_off, egresses$latency)
+
 
   # For each rtt, apply nearest ingress and egress
   res <- c()
@@ -62,6 +66,68 @@ applyLatencies <- function(in_rtts, ingresses, egresses) {
 
   data.frame(rtt=res, ts=in_rtts$ts)
 } 
+
+applyLatencies <- function(in_rtts, ingresses, egresses) {
+
+  # For each rtt, apply nearest ingress and egress
+  ing <- 1
+  egr <- 1
+
+  res <- c()
+  timestamps <- c()
+  for (i in 1:length(in_rtts$rtt)) {
+    iok <- F
+    eok <- F
+    if (ingresses$ts[[ing]] < in_rtts$ts[[i]]) {
+      iok <- T
+    }
+    if (egresses$ts[[egr]] < in_rtts$ts[[i]]) {
+      eok <- T
+    }
+    if (iok && eok) {
+      res <- c(res, in_rtts$rtt[[i]] - (ingresses$latency[[ing]] + egresses$latency[[egr]]))
+      timestamps <- c(timestamps, in_rtts$ts[[i]])
+    }
+    if (iok) {
+      ing <- ing + 1
+    }
+    if (eok) {
+      egr <- egr + 1
+    }
+  }
+
+  data.frame(rtt=res, ts=timestamps)
+} 
+
+adjustContainer <- function(container, latency) {
+  adjs <- c()
+  l <- 2
+  lat_len <- length(latency$ts)
+  if (lat_len <= 2) {
+    print("adjustContainer: not enough latencies, not-adjusting")
+    container
+  } else {
+
+    for (i in 1:length(container$rtt)) {
+
+      if (l < lat_len && container$ts[[i]] > latency$ts[[l]]) {
+        l <- l + 1
+      }
+      
+      if (abs(latency$ts[[l]] - container$ts[[i]])
+          < abs(latency$ts[[l-1]] - container$ts[[i]])) {
+        ave_lat <- latency$latency[[l]]
+      } else {
+        ave_lat <- latency$latency[[l-1]]
+      }
+
+      adj <- container$rtt[[i]] - ave_lat
+      adjs <- c(adjs, adj)
+    }
+    data.frame(rtt=adjs, ts=container$ts)
+  }
+}
+
 
 #
 # Begin main work
@@ -174,6 +240,17 @@ if (file.exists(SAVED_DATA_PATH)) {
 #
 # Crude application of latency data to container monitored RTT
 #
+# container_corrected <- adjustContainer(rtts$container_monitored, latencies$container$ingress)
+# container_corrected <- adjustContainer(container_corrected, latencies$container$egress)
+# 
+# native_corrected <- adjustContainer(rtts$native_monitored, latencies$native$ingress)
+# native_corrected <- adjustContainer(native_corrected, latencies$native$egress)
+
+# container_corrected <- data.frame(rtt=rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency),
+#                                   ts=rtts$container_monitored$ts)
+# native_corrected <- data.frame(rtt=rtts$native_monitored$rtt - (latencies$native$ingress$latency + latencies$native$egress$latency),
+#                                   ts=rtts$native_monitored$ts)
+
 container_corrected <- applyLatencies(rtts$container_monitored, latencies$container$ingress, latencies$container$egress)
 native_corrected <- applyLatencies(rtts$native_monitored, latencies$native$ingress, latencies$native$egress)
 
