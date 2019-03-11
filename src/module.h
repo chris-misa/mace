@@ -61,5 +61,6 @@
 // Rough synchronization of tsc to gettimeofday for later correlation
 //
 void mace_tsc_offset_resync(void);
+void mace_tsc_to_gettimeofday(unsigned long long tsc_val, struct timeval *tv);
 
 #endif

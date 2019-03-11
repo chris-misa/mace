@@ -299,6 +299,16 @@ mace_tsc_offset_resync(void)
   mace_tsc_offset.tv_usec = usec_offset;
 }
 
+void
+mace_tsc_to_gettimeofday(unsigned long long tsc_val, struct timeval *tv)
+{
+  unsigned long long tsc_usec = mace_cycles_to_ns(tsc_val) / 1000;
+  unsigned long long tsc_sec = tsc_usec / 1000000;
+  *(tv) = mace_tsc_offset;
+  tv->tv_sec += tsc_sec;
+  tv->tv_usec += (tsc_usec - tsc_sec * 1000000);
+}
+
 //
 // Module initialization
 //

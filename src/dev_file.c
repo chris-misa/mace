@@ -151,6 +151,7 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
   int read = 0;
   struct mace_namespace_entry *ns = NULL;
   struct mace_latency_event lat;
+  struct timeval tv;
 
   // If the line buffer is empty, get a new latency event from queue
   if (!line_ptr || *line_ptr == '\0') {
@@ -170,12 +171,15 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
       // Queue is empty
       return 0;
     }
+
+    // Convert by offset
+    mace_tsc_to_gettimeofday(lat.ts, &tv);
     
     // Print into line buffer
     snprintf(line_buf,
              MACE_MAX_LINE_LEN,
-             "[%llu] %s: %llu\n",
-             mace_cycles_to_ns(lat.ts),
+             "[%lu.%06lu] %s: %llu\n",
+             tv.tv_sec, tv.tv_usec,
              mace_latency_type_str(lat.type),
              mace_cycles_to_ns(lat.latency));
     line_ptr = line_buf;
