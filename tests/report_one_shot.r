@@ -47,67 +47,46 @@ read_latency <- function(line) {
 #
 # Function to apply latency overheads to gathered RTTs
 # Note: step functions and nearest time-stamp don't seem to work on this data.
-# The basic observation is that ingress / egress latency timestamps always preceed the ping rtt latency timestamp.
-# If an RTT does not have unique egress and ingress latencies directly before it, the point if thrown out.
+# Note: timestamps do not seem to be reliable: this doesn't work
 #
 applyLatencies <- function(in_rtts, ingresses, egresses) {
-
-  # For each rtt, apply nearest ingress and egress
   ing <- 1
   egr <- 1
+  i <- 1
 
   res <- c()
   timestamps <- c()
-  
-  # For each reported RTT
-  i <- 1
-  while (T) {
+  while (i <= length(in_rtts$rtt)) {
 
-    # Check if the next ingress and egress latencies match this RTT
-    iok <- F
-    eok <- F
-    if (ing <= length(ingresses$ts) && ingresses$ts[[ing]] < in_rtts$ts[[i]]) {
-      iok <- T
-    }
-    if (egr <= length(egresses$ts) && egresses$ts[[egr]] < in_rtts$ts[[i]]) {
-      eok <- T
-    }
-
-    # Only add this observation if they both match
-    if (iok && eok) {
-      res <- c(res, in_rtts$rtt[[i]] - (ingresses$latency[[ing]] + egresses$latency[[egr]]))
-      timestamps <- c(timestamps, in_rtts$ts[[i]])
-    }
-    i <- i + 1
-    if (i > length(in_rtts$rtt)) {
-      break
-    }
-
-    # Move ingress and egress pointers along, accounting for possible extra points
-    # Also, bail out if we have no more new ingresses or egresses
-    if (iok) {
-      if (ing == length(ingresses$ts)) {
-        break
-      }
+    # Move ing, egr pointers to surround current rtt
+    while ((ing < length(ingresses$ts) - 1) && (ingresses$ts[[ing + 1]] < in_rtts$ts[[i]])) {
       ing <- ing + 1
-      while (ing < length(ingresses$ts) && ingresses$ts[[ing + 1]] < in_rtts$ts[[i]]) {
-        ing <- ing + 1
-      }
     }
-    if (eok) {
-      if (egr == length(egresses$ts)) {
-        break
-      }
+    while ((egr < length(egresses$ts) - 1) && (egresses$ts[[egr + 1]] < in_rtts$ts[[i]])) {
       egr <- egr + 1
-      while (egr < length(egresses$ts) && egresses$ts[[egr + 1]] < in_rtts$ts[[i]]) {
-        egr <- egr + 1
-      }
     }
+
+    # Choose nearest ing
+    if (in_rtts$ts[[i]] - ingresses$ts[[ing]] < ingresses$ts[[ing+1]] - in_rtts$ts[[i]]) {
+      ing_chose <- ing
+    } else {
+      ing_chose <- ing + 1
+    }
+
+    # Choose nearest egr
+    if (in_rtts$ts[[i]] - egresses$ts[[egr]] < egresses$ts[[egr+1]] - in_rtts$ts[[i]]) {
+      egr_chose <- egr
+    } else {
+      egr_chose <- egr + 1
+    }
+
+    res <- c(res, in_rtts$rtt[[i]] - (ingresses$latency[[ing_chose]] + egresses$latency[[egr_chose]]))
+    timestamps <- c(timestamps, in_rtts$ts[[i]])
+
+    i <- i + 1
   }
-
   data.frame(rtt=res, ts=timestamps)
-} 
-
+}
 
 #
 # Begin main work
@@ -220,19 +199,13 @@ if (file.exists(SAVED_DATA_PATH)) {
 #
 # Crude application of latency data to container monitored RTT
 #
-# container_corrected <- adjustContainer(rtts$container_monitored, latencies$container$ingress)
-# container_corrected <- adjustContainer(container_corrected, latencies$container$egress)
-# 
-# native_corrected <- adjustContainer(rtts$native_monitored, latencies$native$ingress)
-# native_corrected <- adjustContainer(native_corrected, latencies$native$egress)
+container_corrected <- data.frame(rtt=rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency),
+                                  ts=rtts$container_monitored$ts)
+native_corrected <- data.frame(rtt=rtts$native_monitored$rtt - (latencies$native$ingress$latency + latencies$native$egress$latency),
+                                  ts=rtts$native_monitored$ts)
 
-# container_corrected <- data.frame(rtt=rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency),
-#                                   ts=rtts$container_monitored$ts)
-# native_corrected <- data.frame(rtt=rtts$native_monitored$rtt - (latencies$native$ingress$latency + latencies$native$egress$latency),
-#                                   ts=rtts$native_monitored$ts)
-
-container_corrected <- applyLatencies(rtts$container_monitored, latencies$container$ingress, latencies$container$egress)
-native_corrected <- applyLatencies(rtts$native_monitored, latencies$native$ingress, latencies$native$egress)
+# container_corrected <- applyLatencies(rtts$container_monitored, latencies$container$ingress, latencies$container$egress)
+# native_corrected <- applyLatencies(rtts$native_monitored, latencies$native$ingress, latencies$native$egress)
 
 #
 # Deal with sometimes not having hardware rtts
