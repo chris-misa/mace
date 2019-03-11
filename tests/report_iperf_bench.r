@@ -25,6 +25,7 @@ data_path <- args[1]
 # Collect means and sds from all traffic settings
 #
 native_control <- list(mean=c(), median=c(), sd=c())
+native_control_hw <- list(mean=c(), median=c(), sd=c())
 native_monitored <- list(mean=c(), median=c(), sd=c())
 container_control <- list(mean=c(), median=c(), sd=c())
 container_monitored <- list(mean=c(), median=c(), sd=c())
@@ -45,6 +46,10 @@ while (T) {
 	native_control$mean <- c(native_control$mean, data$native_control$mean)
 	native_control$median <- c(native_control$median, data$native_control$median)
 	native_control$sd <- c(native_control$sd, data$native_control$sd)
+
+	native_control_hw$mean <- c(native_control_hw$mean, data$native_control_hw$mean)
+	native_control_hw$median <- c(native_control_hw$median, data$native_control_hw$median)
+	native_control_hw$sd <- c(native_control_hw$sd, data$native_control_hw$sd)
 
 	native_monitored$mean <- c(native_monitored$mean, data$native_monitored$mean)
 	native_monitored$median <- c(native_monitored$median, data$native_monitored$median)
@@ -79,6 +84,7 @@ plot(0, type="n", ylim=ybnds, xlim=xbnds,
      ylab=expression(paste("Mean RTT (",mu,"s)", sep="")),
      main="")
 
+lines(container_counts, native_control_hw$mean, col="green", type="l")
 lines(container_counts, native_control$mean, col="pink", type="l")
 lines(container_counts, native_monitored$mean, col="purple", type="l")
 lines(container_counts, container_control$mean, col="lightblue", type="l")
@@ -87,8 +93,8 @@ lines(container_counts, container_corrected$mean, col="black", type="l")
 lines(container_counts, native_corrected$mean, col="gray", type="l")
 
 legend("topleft",
-  legend=c("native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
-  col=c("pink", "purple", "lightblue", "blue", "black", "gray"),
+  legend=c("hardware", "native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
+  col=c("green", "pink", "purple", "lightblue", "blue", "black", "gray"),
   cex=0.8,
   lty=1,
   bg="white")
@@ -98,13 +104,14 @@ dev.off()
 # Draw line plot of medians
 #
 xbnds <- range(container_counts)
-ybnds <- c(0, max(container_monitored$mean))
+ybnds <- c(0, max(container_monitored$median))
 pdf(file=paste(data_path, "/medians.pdf", sep=""))
 plot(0, type="n", ylim=ybnds, xlim=xbnds,
      xlab="Number of traffic flows",
      ylab=expression(paste("Median RTT (",mu,"s)", sep="")),
      main="")
 
+lines(container_counts, native_control_hw$median, col="green", type="l")
 lines(container_counts, native_control$median, col="pink", type="l")
 lines(container_counts, native_monitored$median, col="purple", type="l")
 lines(container_counts, container_control$median, col="lightblue", type="l")
@@ -113,11 +120,93 @@ lines(container_counts, container_corrected$median, col="black", type="l")
 lines(container_counts, native_corrected$median, col="gray", type="l")
 
 legend("topleft",
-  legend=c("native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
-  col=c("pink", "purple", "lightblue", "blue", "black", "gray"),
+  legend=c("hardware", "native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
+  col=c("green", "pink", "purple", "lightblue", "blue", "black", "gray"),
+  cex=0.8,
+  lty=1,
+  bg="white")
+dev.off()
+
+
+#
+# Draw line plot of deviations
+#
+xbnds <- range(container_counts)
+ybnds <- c(0, max(container_monitored$sd))
+pdf(file=paste(data_path, "/sds.pdf", sep=""))
+plot(0, type="n", ylim=ybnds, xlim=xbnds,
+     xlab="Number of traffic flows",
+     ylab=expression(paste("RTT Std. Deviation (",mu,"s)", sep="")),
+     main="")
+
+lines(container_counts, native_control_hw$sd, col="green", type="l")
+lines(container_counts, native_control$sd, col="pink", type="l")
+lines(container_counts, native_monitored$sd, col="purple", type="l")
+lines(container_counts, container_control$sd, col="lightblue", type="l")
+lines(container_counts, container_monitored$sd, col="blue", type="l")
+lines(container_counts, container_corrected$sd, col="black", type="l")
+lines(container_counts, native_corrected$sd, col="gray", type="l")
+
+legend("topleft",
+  legend=c("hardware", "native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
+  col=c("green", "pink", "purple", "lightblue", "blue", "black", "gray"),
+  cex=0.8,
+  lty=1,
+  bg="white")
+dev.off()
+
+
+#
+# Sub plots for motivating presentation
+#
+
+#
+# Draw line plot of medians for just un-monitored traces
+#
+xbnds <- range(container_counts)
+ybnds <- c(0, max(container_control$median))
+pdf(file=paste(data_path, "/medians_unmonitored.pdf", sep=""))
+plot(0, type="n", ylim=ybnds, xlim=xbnds,
+     xlab="Number of traffic flows",
+     ylab=expression(paste("Median RTT (",mu,"s)", sep="")),
+     main="")
+
+lines(container_counts, native_control_hw$median, col="green", type="l")
+lines(container_counts, native_control$median, col="red", type="l")
+lines(container_counts, container_control$median, col="blue", type="l")
+
+legend("topleft",
+  legend=c("hardware", "native", "container"),
+  col=c("green", "red", "blue"),
+  cex=0.8,
+  lty=1,
+  bg="white")
+dev.off()
+
+
+
+#
+# Draw line plot of sds for just un-monitored traces
+#
+xbnds <- range(container_counts)
+ybnds <- c(0, max(container_control$sd))
+pdf(file=paste(data_path, "/sds_unmonitored.pdf", sep=""))
+plot(0, type="n", ylim=ybnds, xlim=xbnds,
+     xlab="Number of traffic flows",
+     ylab=expression(paste("RTT Std. Deviation (",mu,"s)", sep="")),
+     main="")
+
+lines(container_counts, native_control_hw$sd, col="green", type="l")
+lines(container_counts, native_control$sd, col="red", type="l")
+lines(container_counts, container_control$sd, col="blue", type="l")
+
+legend("topleft",
+  legend=c("hardware", "native", "container"),
+  col=c("green", "red", "blue"),
   cex=0.8,
   lty=1,
   bg="white")
 dev.off()
 
 cat("Done.\n")
+
