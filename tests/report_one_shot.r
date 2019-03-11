@@ -45,6 +45,25 @@ read_latency <- function(line) {
 }
 
 #
+# Function to apply latency overheads to gathered RTTs
+#
+applyLatencies <- function(in_rtts, ingresses, egresses) {
+
+  ing_fun <- stepfun(ingresses$ts[-1], ingresses$latency)
+  egr_fun <- stepfun(egresses$ts[-1], egresses$latency)
+
+  # For each rtt, apply nearest ingress and egress
+  res <- c()
+  for (i in 1:length(in_rtts$rtt)) {
+    # Since reported ingress and egress timestamps are generally ahead of ping's reported timestamp,
+    # this employs the most recently observed latency
+    res <- c(res, in_rtts$rtt[[i]] - (ing_fun(in_rtts$ts[[i]]) + egr_fun(in_rtts$ts[[i]])))
+  }
+
+  data.frame(rtt=res, ts=in_rtts$ts)
+} 
+
+#
 # Begin main work
 #
 
@@ -155,8 +174,8 @@ if (file.exists(SAVED_DATA_PATH)) {
 #
 # Crude application of latency data to container monitored RTT
 #
-container_corrected <- rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency)
-native_corrected <- rtts$native_monitored$rtt - (latencies$native$ingress$latency + latencies$native$egress$latency)
+container_corrected <- applyLatencies(rtts$container_monitored, latencies$container$ingress, latencies$container$egress)
+native_corrected <- applyLatencies(rtts$native_monitored, latencies$native$ingress, latencies$native$egress)
 
 #
 # Deal with sometimes not having hardware rtts
@@ -183,12 +202,12 @@ dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
 	  container_monitored=list(mean=mean(rtts$container_monitored$rtt),
 				   sd=sd(rtts$container_monitored$rtt),
 				   median=median(rtts$container_monitored$rtt)),
-	  container_corrected=list(mean=mean(container_corrected),
-			 sd=sd(container_corrected),
-			 median=median(container_corrected)),
-	  native_corrected=list(mean=mean(native_corrected),
-			 sd=sd(native_corrected),
-			 median=median(native_corrected))),
+	  container_corrected=list(mean=mean(container_corrected$rtt),
+			 sd=sd(container_corrected$rtt),
+			 median=median(container_corrected$rtt)),
+	  native_corrected=list(mean=mean(native_corrected$rtt),
+			 sd=sd(native_corrected$rtt),
+			 median=median(native_corrected$rtt))),
      file=SUMMARY_DATA_PATH)
 
 #
@@ -206,8 +225,8 @@ lines(ecdf(rtts$native_monitored$rtt), col="purple", do.points=F, verticals=T)
 lines(ecdf(rtts$container_control$rtt), col="lightblue", do.points=F, verticals=T)
 lines(ecdf(rtts$container_monitored$rtt), col="blue", do.points=F, verticals=T)
 
-lines(ecdf(container_corrected), col="black", do.point=F, verticals=T)
-lines(ecdf(native_corrected), col="gray", do.point=F, verticals=T)
+lines(ecdf(container_corrected$rtt), col="black", do.point=F, verticals=T)
+lines(ecdf(native_corrected$rtt), col="gray", do.point=F, verticals=T)
 
 legend("bottomright",
   legend=c("hardware", "native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),

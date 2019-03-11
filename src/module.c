@@ -280,6 +280,10 @@ test_and_set_traceprobe(struct tracepoint *tp, void *unused)
 //
 // Rough synchronization of tsc to gettimeofday for later correlation
 //
+
+//
+// Subtract current reading of tsc from gettimeofday to get offset
+//
 void
 mace_tsc_offset_resync(void)
 {
@@ -299,6 +303,9 @@ mace_tsc_offset_resync(void)
   mace_tsc_offset.tv_usec = usec_offset;
 }
 
+//
+// Add tsc reading to offset and format as struct timeval
+//
 void
 mace_tsc_to_gettimeofday(unsigned long long tsc_val, struct timeval *tv)
 {
@@ -307,6 +314,11 @@ mace_tsc_to_gettimeofday(unsigned long long tsc_val, struct timeval *tv)
   *(tv) = mace_tsc_offset;
   tv->tv_sec += tsc_sec;
   tv->tv_usec += (tsc_usec - tsc_sec * 1000000);
+
+  if (tv->tv_usec > 1000000) {
+    tv->tv_sec++;
+    tv->tv_usec -= 1000000;
+  }
 }
 
 //

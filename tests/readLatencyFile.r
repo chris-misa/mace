@@ -9,7 +9,7 @@ readLatencyFile <- function(filePath) {
   egress_timestamps <- c()
   ingress <- c()
   ingress_timestamps <- c()
-  linePattern <- "\\[([0-9]+)\\] (ingress|egress): ([0-9]+)"
+  linePattern <- "\\[([0-9\\.]+)\\] (ingress|egress): ([0-9]+)"
   while (T) {
     line <- readLines(con, n=1)
     if (length(line) == 0) {
