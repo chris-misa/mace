@@ -9,7 +9,7 @@ source("readHWPingFile.r")
 source("readLatencyFile.r")
 
 cdfArea <- function(q, p) {
-  Reduce(function(x,y) { x+y }, Map(function(x) { abs(q(x) - p(x)) }, knots(q)))
+  Reduce(function(x,y) { x+y }, Map(function(x) { (q(x) - p(x))^2 }, knots(q))) / length(knots(q))
 }
 
 #
@@ -222,11 +222,14 @@ if (length(rtts$native_control_hw) == 0) {
 #
 # Get cdfs
 #
+native_control_hw_cdf <- ecdf(rtts$native_control_hw$rtt)
 native_control_cdf <- ecdf(rtts$native_control$rtt)
 native_monitored_cdf <- ecdf(rtts$native_monitored$rtt)
 container_control_cdf <- ecdf(rtts$container_control$rtt)
 container_monitored_cdf <- ecdf(rtts$container_monitored$rtt)
 
+container_corrected_cdf <- ecdf(container_corrected$rtt)
+native_corrected_cdf <- ecdf(native_corrected$rtt)
 #
 # Write out summary stats
 #
@@ -252,7 +255,9 @@ dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
 			 sd=sd(native_corrected$rtt),
 			 median=median(native_corrected$rtt)),
     native_pert_area = cdfArea(native_control_cdf, native_monitored_cdf),
-    container_pert_area = cdfArea(container_control_cdf, container_monitored_cdf)),
+    container_pert_area = cdfArea(container_control_cdf, container_monitored_cdf),
+    native_corrected_area = cdfArea(native_control_hw_cdf, native_corrected_cdf),
+    container_corrected_area = cdfArea(native_control_hw_cdf, container_corrected_cdf)),
      file=SUMMARY_DATA_PATH)
 
 #
@@ -264,14 +269,14 @@ plot(0, type="n", ylim=c(0,1), xlim=xbnds,
      xlab=expression(paste("RTT (",mu,"s)", sep="")),
      ylab="CDF",
      main="")
-lines(ecdf(rtts$native_control_hw$rtt), col="green", do.points=F, verticals=T)
+lines(native_control_hw_cdf, col="green", do.points=F, verticals=T)
 lines(native_control_cdf, col="pink", do.points=F, verticals=T)
 lines(native_monitored_cdf, col="purple", do.points=F, verticals=T)
 lines(container_control_cdf, col="lightblue", do.points=F, verticals=T)
 lines(container_monitored_cdf, col="blue", do.points=F, verticals=T)
 
-lines(ecdf(container_corrected$rtt), col="black", do.point=F, verticals=T)
-lines(ecdf(native_corrected$rtt), col="gray", do.point=F, verticals=T)
+lines(container_corrected_cdf, col="black", do.point=F, verticals=T)
+lines(native_corrected_cdf, col="gray", do.point=F, verticals=T)
 
 legend("bottomright",
   legend=c("hardware", "native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),

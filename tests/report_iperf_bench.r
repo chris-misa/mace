@@ -16,8 +16,6 @@ if (length(args) != 1) {
 
 data_path <- args[1]
 
-
-
 #
 # Begin main work
 #
@@ -35,6 +33,10 @@ container_corrected <- list(mean=c(), median=c(), sd=c())
 native_corrected <- list(mean=c(), median=c(), sd=c())
 native_pert_areas <- c()
 container_pert_areas <- c()
+native_corrected_areas <- c()
+container_corrected_areas <- c()
+
+
 container_counts <- c()
 
 con <- file(paste(data_path, "/manifest", sep=""), "r")
@@ -77,6 +79,9 @@ while (T) {
 
   native_pert_areas <- c(native_pert_areas , data$native_pert_area)
   container_pert_areas <- c(container_pert_areas, data$container_pert_area)
+
+  native_corrected_areas <- c(native_corrected_areas, data$native_corrected_area)
+  container_corrected_areas <- c(container_corrected_areas, data$container_corrected_area)
 }
 close(con)
 
@@ -222,20 +227,35 @@ dev.off()
 xbnds <- range(container_counts)
 ybnds <- c(0, max(container_pert_areas))
 pdf(file=paste(data_path, "/perturbation_areas.pdf", sep=""))
-plot(0, type="n", ylim=ybnds, xlim=xbnds,
+par(mar=c(4, 5, 2, 2))
+
+barplot(rbind(native_pert_areas, container_pert_areas), col=c("red", "blue"),
      xlab="Number of traffic flows",
-     ylab=expression(paste("Area Between Control and Monitored (",mu,"s^2)", sep="")),
-     main="")
+     ylab=expression("MSE", sep=""),
+     main="",
+     beside=T,
+     names.arg=c(0,5,10,15,20),
+     legend=c("native", "container"))
 
-lines(container_counts, native_pert_areas, col="red", type="l")
-lines(container_counts, container_pert_areas, col="blue", type="l")
+dev.off()
 
-legend("topleft",
-  legend=c("native", "container"),
-  col=c("red", "blue"),
-  cex=0.8,
-  lty=1,
-  bg="white")
+#
+# Plot distance to hardware
+#
+xbnds <- range(container_counts)
+ybnds <- c(0, max(container_corrected_areas))
+pdf(file=paste(data_path, "/corrected_areas.pdf", sep=""))
+par(mar=c(4, 5, 2, 2))
+
+barplot(rbind(native_corrected_areas, container_corrected_areas), col=c("red", "blue"),
+     xlab="Number of traffic flows",
+     ylab=expression("MSE", sep=""),
+     main="",
+     beside=T,
+     names.arg=c(0,5,10,15,20),
+     args.legend=list(x="topleft"),
+     legend=c("native", "container"))
+
 dev.off()
 
 
