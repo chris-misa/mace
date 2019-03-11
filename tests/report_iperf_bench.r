@@ -16,6 +16,8 @@ if (length(args) != 1) {
 
 data_path <- args[1]
 
+
+
 #
 # Begin main work
 #
@@ -31,6 +33,8 @@ container_control <- list(mean=c(), median=c(), sd=c())
 container_monitored <- list(mean=c(), median=c(), sd=c())
 container_corrected <- list(mean=c(), median=c(), sd=c())
 native_corrected <- list(mean=c(), median=c(), sd=c())
+native_pert_areas <- c()
+container_pert_areas <- c()
 container_counts <- c()
 
 con <- file(paste(data_path, "/manifest", sep=""), "r")
@@ -70,6 +74,9 @@ while (T) {
 	native_corrected$mean <- c(native_corrected$mean, data$native_corrected$mean)
 	native_corrected$median <- c(native_corrected$median, data$native_corrected$median)
 	native_corrected$sd <- c(native_corrected$sd, data$native_corrected$sd)
+
+  native_pert_areas <- c(native_pert_areas , data$native_pert_area)
+  container_pert_areas <- c(container_pert_areas, data$container_pert_area)
 }
 close(con)
 
@@ -207,6 +214,30 @@ legend("topleft",
   lty=1,
   bg="white")
 dev.off()
+
+
+#
+# Plot perturbation areas
+#
+xbnds <- range(container_counts)
+ybnds <- c(0, max(container_pert_areas))
+pdf(file=paste(data_path, "/perturbation_areas.pdf", sep=""))
+plot(0, type="n", ylim=ybnds, xlim=xbnds,
+     xlab="Number of traffic flows",
+     ylab=expression(paste("Area Between Control and Monitored (",mu,"s^2)", sep="")),
+     main="")
+
+lines(container_counts, native_pert_areas, col="red", type="l")
+lines(container_counts, container_pert_areas, col="blue", type="l")
+
+legend("topleft",
+  legend=c("native", "container"),
+  col=c("red", "blue"),
+  cex=0.8,
+  lty=1,
+  bg="white")
+dev.off()
+
 
 cat("Done.\n")
 

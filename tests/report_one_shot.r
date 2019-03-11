@@ -8,6 +8,10 @@ source("readPingFile.r")
 source("readHWPingFile.r")
 source("readLatencyFile.r")
 
+cdfArea <- function(q, p) {
+  Reduce(function(x,y) { x+y }, Map(function(x) { abs(q(x) - p(x)) }, knots(q)))
+}
+
 #
 # Argument should be directory holding raw data
 #
@@ -214,6 +218,15 @@ if (length(rtts$native_control_hw) == 0) {
 	rtts$native_control_hw = data.frame(rtt=c(0), ts=c(0))
 }
 
+
+#
+# Get cdfs
+#
+native_control_cdf <- ecdf(rtts$native_control$rtt)
+native_monitored_cdf <- ecdf(rtts$native_monitored$rtt)
+container_control_cdf <- ecdf(rtts$container_control$rtt)
+container_monitored_cdf <- ecdf(rtts$container_monitored$rtt)
+
 #
 # Write out summary stats
 #
@@ -237,7 +250,9 @@ dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
 			 median=median(container_corrected$rtt)),
 	  native_corrected=list(mean=mean(native_corrected$rtt),
 			 sd=sd(native_corrected$rtt),
-			 median=median(native_corrected$rtt))),
+			 median=median(native_corrected$rtt)),
+    native_pert_area = cdfArea(native_control_cdf, native_monitored_cdf),
+    container_pert_area = cdfArea(container_control_cdf, container_monitored_cdf)),
      file=SUMMARY_DATA_PATH)
 
 #
@@ -250,10 +265,10 @@ plot(0, type="n", ylim=c(0,1), xlim=xbnds,
      ylab="CDF",
      main="")
 lines(ecdf(rtts$native_control_hw$rtt), col="green", do.points=F, verticals=T)
-lines(ecdf(rtts$native_control$rtt), col="pink", do.points=F, verticals=T)
-lines(ecdf(rtts$native_monitored$rtt), col="purple", do.points=F, verticals=T)
-lines(ecdf(rtts$container_control$rtt), col="lightblue", do.points=F, verticals=T)
-lines(ecdf(rtts$container_monitored$rtt), col="blue", do.points=F, verticals=T)
+lines(native_control_cdf, col="pink", do.points=F, verticals=T)
+lines(native_monitored_cdf, col="purple", do.points=F, verticals=T)
+lines(container_control_cdf, col="lightblue", do.points=F, verticals=T)
+lines(container_monitored_cdf, col="blue", do.points=F, verticals=T)
 
 lines(ecdf(container_corrected$rtt), col="black", do.point=F, verticals=T)
 lines(ecdf(native_corrected$rtt), col="gray", do.point=F, verticals=T)
