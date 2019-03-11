@@ -46,27 +46,10 @@ read_latency <- function(line) {
 
 #
 # Function to apply latency overheads to gathered RTTs
+# Note: step functions and nearest time-stamp don't seem to work on this data.
+# The basic observation is that ingress / egress latency timestamps always preceed the ping rtt latency timestamp.
+# If an RTT does not have unique egress and ingress latencies directly before it, the point if thrown out.
 #
-applyLatencies_OLD <- function(in_rtts, ingresses, egresses) {
-
-  #x_off <- (in_rtts$ts[[2]] - in_rtts$ts[[1]]) * 0.4
-  x_off <- 0
-
-  ing_fun <- stepfun(ingresses$ts[-1] - x_off, ingresses$latency)
-  egr_fun <- stepfun(egresses$ts[-1] - x_off, egresses$latency)
-
-
-  # For each rtt, apply nearest ingress and egress
-  res <- c()
-  for (i in 1:length(in_rtts$rtt)) {
-    # Since reported ingress and egress timestamps are generally ahead of ping's reported timestamp,
-    # this employs the most recently observed latency
-    res <- c(res, in_rtts$rtt[[i]] - (ing_fun(in_rtts$ts[[i]]) + egr_fun(in_rtts$ts[[i]])))
-  }
-
-  data.frame(rtt=res, ts=in_rtts$ts)
-} 
-
 applyLatencies <- function(in_rtts, ingresses, egresses) {
 
   # For each rtt, apply nearest ingress and egress
@@ -75,58 +58,55 @@ applyLatencies <- function(in_rtts, ingresses, egresses) {
 
   res <- c()
   timestamps <- c()
-  for (i in 1:length(in_rtts$rtt)) {
+  
+  # For each reported RTT
+  i <- 1
+  while (T) {
+
+    # Check if the next ingress and egress latencies match this RTT
     iok <- F
     eok <- F
-    if (ingresses$ts[[ing]] < in_rtts$ts[[i]]) {
+    if (ing <= length(ingresses$ts) && ingresses$ts[[ing]] < in_rtts$ts[[i]]) {
       iok <- T
     }
-    if (egresses$ts[[egr]] < in_rtts$ts[[i]]) {
+    if (egr <= length(egresses$ts) && egresses$ts[[egr]] < in_rtts$ts[[i]]) {
       eok <- T
     }
+
+    # Only add this observation if they both match
     if (iok && eok) {
       res <- c(res, in_rtts$rtt[[i]] - (ingresses$latency[[ing]] + egresses$latency[[egr]]))
       timestamps <- c(timestamps, in_rtts$ts[[i]])
     }
+    i <- i + 1
+    if (i > length(in_rtts$rtt)) {
+      break
+    }
+
+    # Move ingress and egress pointers along, accounting for possible extra points
+    # Also, bail out if we have no more new ingresses or egresses
     if (iok) {
+      if (ing == length(ingresses$ts)) {
+        break
+      }
       ing <- ing + 1
+      while (ing < length(ingresses$ts) && ingresses$ts[[ing + 1]] < in_rtts$ts[[i]]) {
+        ing <- ing + 1
+      }
     }
     if (eok) {
+      if (egr == length(egresses$ts)) {
+        break
+      }
       egr <- egr + 1
+      while (egr < length(egresses$ts) && egresses$ts[[egr + 1]] < in_rtts$ts[[i]]) {
+        egr <- egr + 1
+      }
     }
   }
 
   data.frame(rtt=res, ts=timestamps)
 } 
-
-adjustContainer <- function(container, latency) {
-  adjs <- c()
-  l <- 2
-  lat_len <- length(latency$ts)
-  if (lat_len <= 2) {
-    print("adjustContainer: not enough latencies, not-adjusting")
-    container
-  } else {
-
-    for (i in 1:length(container$rtt)) {
-
-      if (l < lat_len && container$ts[[i]] > latency$ts[[l]]) {
-        l <- l + 1
-      }
-      
-      if (abs(latency$ts[[l]] - container$ts[[i]])
-          < abs(latency$ts[[l-1]] - container$ts[[i]])) {
-        ave_lat <- latency$latency[[l]]
-      } else {
-        ave_lat <- latency$latency[[l-1]]
-      }
-
-      adj <- container$rtt[[i]] - ave_lat
-      adjs <- c(adjs, adj)
-    }
-    data.frame(rtt=adjs, ts=container$ts)
-  }
-}
 
 
 #
