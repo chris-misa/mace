@@ -58,10 +58,18 @@ applyLatencies <- function(in_rtts, ingresses, egresses) {
   tss <- c()
   seqs <- c()
   dropped <- 0
+  curRun <- 1
+  lastSeq <- 0
 
   for (i in 1:length(in_rtts$rtt)) {
-    ing_lat <- ingresses$latency[ingresses$seq == in_rtts$seq[[i]]]
-    egr_lat <- egresses$latency[egresses$seq == in_rtts$seq[[i]]]
+
+    if (in_rtts$seq[[i]] < lastSeq) {
+      curRun <- curRun + 1
+    }
+    lastSeq <- in_rtts$seq[[i]]
+
+    ing_lat <- ingresses$latency[ingresses$seq == in_rtts$seq[[i]]][[curRun]]
+    egr_lat <- egresses$latency[egresses$seq == in_rtts$seq[[i]]][[curRun]]
     if (length(ing_lat) != 0 && length(egr_lat) != 0) {
       res <- c(res, in_rtts$rtt[[i]] - (ing_lat + egr_lat))
       tss <- c(tss, in_rtts$ts[[i]])
