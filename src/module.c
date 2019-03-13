@@ -6,6 +6,8 @@
 
 #include "module.h"
 
+#define DEBUG
+
 // Test for ok ipv4 packets
 #ifdef DEBUG
   #define check_ipv4(ip) \
@@ -147,17 +149,15 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 
 #ifdef DEBUG
     {
-      unsigned char *d_ptr = skb->data + sizeof(struct ethhdr) + 20;
+      int n = skb_headlen(skb);
+      int i;
+      unsigned char *d_ptr = skb->data + sizeof(struct ethhdr);
       printk(KERN_INFO "Mace: net_dev_start_xmit key: %016llX\n", key);
-      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-          d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
-          d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
-      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-          d_ptr[8], d_ptr[9], d_ptr[10], d_ptr[11],
-          d_ptr[12], d_ptr[13], d_ptr[14], d_ptr[15]);
-      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-          d_ptr[16], d_ptr[17], d_ptr[18], d_ptr[19],
-          d_ptr[20], d_ptr[21], d_ptr[22], d_ptr[23]);
+      for (i = 0; i < n; i += 8) {
+        printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+            d_ptr[i], d_ptr[i+1], d_ptr[i+2], d_ptr[i+3],
+            d_ptr[i+4], d_ptr[i+5], d_ptr[i+6], d_ptr[i+7]);
+      }
     }
 #endif
   }
@@ -169,32 +169,35 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 static void
 probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 {
-  struct iphdr *ip;
+  struct iphdr ip;
+  struct iphdr *ip_ptr = &ip;
   u64 key;
+  u64 *key_ptr = &key;
 
   // Filter for outer device
   if (skb->dev && mace_in_set(skb->dev->ifindex, outer_devs)) {
     
     // Get key from payload bytes and store in ingress table
-    ip = (struct iphdr *)(skb->data);
-    check_ipv4(ip);
+    ip_ptr = skb_header_pointer(skb, 0, sizeof(struct iphdr), ip_ptr);
+    ip = *ip_ptr;
     
-    key = *((u64 *)(skb->data + ip->ihl * 4));
+    key_ptr = skb_header_pointer(skb, ip.ihl * 4, sizeof(key), key_ptr);
+    key = *key_ptr;
+
     register_entry(ingress_latencies, key, NULL);
 
 #ifdef DEBUG
     {
-      unsigned char *d_ptr = skb->data + 20;
-      printk(KERN_INFO "Mace: netif_receive_skb key: %016llX\n", key);
-      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-          d_ptr[0], d_ptr[1], d_ptr[2], d_ptr[3],
-          d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
-      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-          d_ptr[8], d_ptr[9], d_ptr[10], d_ptr[11],
-          d_ptr[12], d_ptr[13], d_ptr[14], d_ptr[15]);
-      printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-          d_ptr[16], d_ptr[17], d_ptr[18], d_ptr[19],
-          d_ptr[20], d_ptr[21], d_ptr[22], d_ptr[23]);
+      int n = skb_headlen(skb);
+      int i;
+      unsigned char *d_ptr = skb->data;
+      printk(KERN_INFO "Mace: netif_receive_skb key: %016llX len: %d data_len: %d\n", key, skb->len, skb->data_len);
+
+      for (i = 0; i < n; i += 8) {
+        printk(KERN_INFO "Mace: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+            d_ptr[i], d_ptr[i+1], d_ptr[i+2], d_ptr[i+3],
+            d_ptr[i+4], d_ptr[i+5], d_ptr[i+6], d_ptr[i+7]);
+      }
     }
 #endif
   }

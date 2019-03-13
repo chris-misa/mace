@@ -55,7 +55,6 @@
 //
 // Uncomment this macro to get lots of printk information and terrible performance
 //
-// #define DEBUG
 
 //
 // Rough synchronization of tsc to gettimeofday for later correlation
