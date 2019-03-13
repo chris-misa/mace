@@ -64,7 +64,7 @@
  *   direction: mace_latency_type to hand to mace_push_event()
  *   ns: struct mace_namespace_entry pointer or NULL
  */
-#define register_exit(table, key, direction, ns_ptr) \
+#define register_exit(table, key, direction, ns_ptr, pkt_id) \
 { \
   int index = hash_min((key), MACE_LATENCY_TABLE_BITS); \
   unsigned long long enter = 0; \
@@ -90,7 +90,7 @@
     } \
     \
     if (saved_ns != NULL) { \
-      mace_push_event(&saved_ns->buf, dt, direction, saved_ns->ns_id, enter); \
+      mace_push_event(&saved_ns->buf, dt, direction, saved_ns->ns_id, enter, pkt_id); \
     } \
   } \
 }

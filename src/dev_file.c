@@ -178,8 +178,9 @@ latency_queue_read(struct file *fp, char *buf, size_t len, loff_t *offset)
     // Print into line buffer
     snprintf(line_buf,
              MACE_MAX_LINE_LEN,
-             "[%lu.%06lu] %s: %llu\n",
+             "[%lu.%06lu] (%lu) %s: %llu\n",
              tv.tv_sec, tv.tv_usec,
+             lat.pktid,
              mace_latency_type_str(lat.type),
              mace_cycles_to_ns(lat.latency));
     line_ptr = line_buf;

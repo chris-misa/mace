@@ -56,6 +56,7 @@ mace_pop_event(struct mace_ring_buffer *buf, struct mace_latency_event *evt)
   evt->type = buf->queue[r].type;
   evt->ns_id = buf->queue[r].ns_id;
   evt->ts = buf->queue[r].ts;
+  evt->pktid = buf->queue[r].pktid;
 
   // Check if any writes hit this entry
   return atomic_xchg(&buf->queue[r].writing, 1);

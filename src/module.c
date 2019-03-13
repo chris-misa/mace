@@ -6,7 +6,7 @@
 
 #include "module.h"
 
-#define DEBUG
+// #define DEBUG
 
 // Test for ok ipv4 packets
 #ifdef DEBUG
@@ -136,6 +136,7 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 {
   struct iphdr *ip;
   u64 key;
+  unsigned long pktid;
   
   // Filter for outer devices
   if (mace_in_set(dev->ifindex, outer_devs)) {
@@ -144,8 +145,9 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
     ip = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
     check_ipv4(ip);
 
-    key =*((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
-    register_exit(egress_latencies, key, MACE_LATENCY_EGRESS, NULL);
+    key = *((u64 *)(skb->data + ip->ihl * 4 + sizeof(struct ethhdr)));
+    pktid = be16_to_cpu(*(((u16*)&key) + 3));
+    register_exit(egress_latencies, key, MACE_LATENCY_EGRESS, NULL, pktid);
 
 #ifdef DEBUG
     {
@@ -214,6 +216,7 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
   struct iphdr ip;
   u64 key;
   struct mace_namespace_entry *ns = NULL;
+  unsigned long pktid;
 
   // Filter by syscall number
   if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
@@ -233,7 +236,8 @@ probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
         return;
       }
       copy_from_user(&key, iov.iov_base + ip.ihl * 4, 8);
-      register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns);
+      pktid = be16_to_cpu(*(((u16*)&key) + 3));
+      register_exit(ingress_latencies, key, MACE_LATENCY_INGRESS, ns, pktid);
 
 #ifdef DEBUG
       {

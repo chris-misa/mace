@@ -24,6 +24,7 @@ struct mace_latency_event {
   mace_latency_type type;
   unsigned long ns_id;
   atomic_t writing;
+  unsigned long pktid;
 };
 
 #define MACE_EVENT_QUEUE_BITS 16 // Must be less than sizeof(atomic_t) * 8
@@ -59,7 +60,7 @@ mace_push_event(struct mace_ring_buffer *buf,
                 unsigned long ns_id,
                 unsigned long long ts)
 */
-#define mace_push_event(buf, new_latency, new_type, new_ns_id, new_ts) \
+#define mace_push_event(buf, new_latency, new_type, new_ns_id, new_ts, new_pkt_id) \
 { \
   int w; \
   \
@@ -75,6 +76,7 @@ mace_push_event(struct mace_ring_buffer *buf,
   (buf)->queue[w].type = new_type; \
   (buf)->queue[w].ns_id = new_ns_id; \
   (buf)->queue[w].ts = new_ts; \
+  (buf)->queue[w].pktid = new_pkt_id; \
 }
 
 //
