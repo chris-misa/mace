@@ -5,6 +5,7 @@
 #
 
 echo "native_hardware.ping" >> $MANIFEST
+echo "native_socket.ping" >> $MANIFEST
 echo "native_control.ping" >> $MANIFEST
 echo "container_control.ping" >> $MANIFEST
 echo "native_monitored.ping" >> $MANIFEST
@@ -31,6 +32,14 @@ do
   hwstamp_ctl -i $OUTER_DEV_NAME -r 0 -t 0 > /dev/null
   echo " Hardware timestamps disabled"
   $PAUSE_CMD
+
+  #
+  # Native Normal Socket timestamp
+  #
+  taskset 0x1 ping $PING_ARGS $TARGET >> native_socket.ping
+  echo "  Took native socket"
+  $PAUSE_CMD
+
 
   #
   # Native Control userspace base-line

@@ -8,7 +8,7 @@
 
 export B="===================="
 
-export NUM_ROUNDS=5
+export NUM_ROUNDS=1
 
 export PING_ARGS="-D -i 0.0 -s 1472 -c 2000"
 

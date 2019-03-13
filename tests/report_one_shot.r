@@ -50,46 +50,32 @@ read_latency <- function(line) {
 
 #
 # Function to apply latency overheads to gathered RTTs
-# Note: step functions and nearest time-stamp don't seem to work on this data.
-# Note: timestamps do not seem to be reliable: this doesn't work
+# The bug is that this doesn't work when there are multiple ping rounds stacked in the same trace
 #
 applyLatencies <- function(in_rtts, ingresses, egresses) {
-  ing <- 1
-  egr <- 1
-  i <- 1
 
   res <- c()
-  timestamps <- c()
-  while (i <= length(in_rtts$rtt)) {
+  tss <- c()
+  seqs <- c()
+  dropped <- 0
 
-    # Move ing, egr pointers to surround current rtt
-    while ((ing < length(ingresses$ts) - 1) && (ingresses$ts[[ing + 1]] < in_rtts$ts[[i]])) {
-      ing <- ing + 1
-    }
-    while ((egr < length(egresses$ts) - 1) && (egresses$ts[[egr + 1]] < in_rtts$ts[[i]])) {
-      egr <- egr + 1
-    }
-
-    # Choose nearest ing
-    if (in_rtts$ts[[i]] - ingresses$ts[[ing]] < ingresses$ts[[ing+1]] - in_rtts$ts[[i]]) {
-      ing_chose <- ing
+  for (i in 1:length(in_rtts$rtt)) {
+    ing_lat <- ingresses$latency[ingresses$seq == in_rtts$seq[[i]]]
+    egr_lat <- egresses$latency[egresses$seq == in_rtts$seq[[i]]]
+    if (length(ing_lat) != 0 && length(egr_lat) != 0) {
+      res <- c(res, in_rtts$rtt[[i]] - (ing_lat + egr_lat))
+      tss <- c(tss, in_rtts$ts[[i]])
+      seqs <- c(seqs, in_rtts$seq[[i]])
     } else {
-      ing_chose <- ing + 1
+      dropped <- dropped + 1
     }
-
-    # Choose nearest egr
-    if (in_rtts$ts[[i]] - egresses$ts[[egr]] < egresses$ts[[egr+1]] - in_rtts$ts[[i]]) {
-      egr_chose <- egr
-    } else {
-      egr_chose <- egr + 1
-    }
-
-    res <- c(res, in_rtts$rtt[[i]] - (ingresses$latency[[ing_chose]] + egresses$latency[[egr_chose]]))
-    timestamps <- c(timestamps, in_rtts$ts[[i]])
-
-    i <- i + 1
   }
-  data.frame(rtt=res, ts=timestamps)
+
+  if (dropped != 0) {
+    cat("Dropped", dropped, "rtts due to incomplete latency data\n")
+  }
+
+  data.frame(rtt=res, ts=tss, seq=seqs)
 }
 
 #
@@ -113,6 +99,7 @@ if (file.exists(SAVED_DATA_PATH)) {
   rtts <- list(
     native_control = list(),
     native_control_hw = list(),
+    native_control_socket = list(),
     native_monitored = list(),
     container_control = list(),
     container_monitored = list()
@@ -146,6 +133,12 @@ if (file.exists(SAVED_DATA_PATH)) {
         # Branch for native hardware ping results
         if (length(grep("hardware", line)) != 0) {
           rtts$native_control_hw <- append(rtts$native_control_hw, read_hw_ping(line))
+          read <- 1
+        }
+
+        # Branch for native socket ts ping results
+        if (length(grep("socket", line)) != 0) {
+          rtts$native_control_socket <- append(rtts$native_control_socket, read_ping(line))
           read <- 1
         }
 
@@ -203,13 +196,13 @@ if (file.exists(SAVED_DATA_PATH)) {
 #
 # Crude application of latency data to container monitored RTT
 #
-container_corrected <- data.frame(rtt=rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency),
-                                  ts=rtts$container_monitored$ts)
-native_corrected <- data.frame(rtt=rtts$native_monitored$rtt - (latencies$native$ingress$latency + latencies$native$egress$latency),
-                                  ts=rtts$native_monitored$ts)
+# container_corrected <- data.frame(rtt=rtts$container_monitored$rtt - (latencies$container$ingress$latency + latencies$container$egress$latency),
+#                                   ts=rtts$container_monitored$ts)
+# native_corrected <- data.frame(rtt=rtts$native_monitored$rtt - (latencies$native$ingress$latency + latencies$native$egress$latency),
+#                                   ts=rtts$native_monitored$ts)
 
-# container_corrected <- applyLatencies(rtts$container_monitored, latencies$container$ingress, latencies$container$egress)
-# native_corrected <- applyLatencies(rtts$native_monitored, latencies$native$ingress, latencies$native$egress)
+container_corrected <- applyLatencies(rtts$container_monitored, latencies$container$ingress, latencies$container$egress)
+native_corrected <- applyLatencies(rtts$native_monitored, latencies$native$ingress, latencies$native$egress)
 
 #
 # Deal with sometimes not having hardware rtts
@@ -223,6 +216,7 @@ if (length(rtts$native_control_hw) == 0) {
 # Get cdfs
 #
 native_control_hw_cdf <- ecdf(rtts$native_control_hw$rtt)
+native_control_socket_cdf <- ecdf(rtts$native_control_socket$rtt)
 native_control_cdf <- ecdf(rtts$native_control$rtt)
 native_monitored_cdf <- ecdf(rtts$native_monitored$rtt)
 container_control_cdf <- ecdf(rtts$container_control$rtt)
@@ -239,6 +233,9 @@ dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
           native_control_hw=list(mean=mean(rtts$native_control_hw$rtt),
 			      sd=sd(rtts$native_control_hw$rtt),
 			      median=median(rtts$native_control_hw$rtt)),
+          native_control_socket=list(mean=mean(rtts$native_control_socket$rtt),
+			      sd=sd(rtts$native_control_socket$rtt),
+			      median=median(rtts$native_control_socket$rtt)),
 	  native_monitored=list(mean=mean(rtts$native_monitored$rtt),
 				sd=sd(rtts$native_monitored$rtt),
 				median=median(rtts$native_monitored$rtt)),
@@ -269,6 +266,7 @@ plot(0, type="n", ylim=c(0,1), xlim=xbnds,
      xlab=expression(paste("RTT (",mu,"s)", sep="")),
      ylab="CDF",
      main="")
+lines(native_control_socket_cdf, col="darkgreen", do.points=F, verticals=T)
 lines(native_control_hw_cdf, col="green", do.points=F, verticals=T)
 lines(native_control_cdf, col="pink", do.points=F, verticals=T)
 lines(native_monitored_cdf, col="purple", do.points=F, verticals=T)
@@ -279,8 +277,8 @@ lines(container_corrected_cdf, col="black", do.point=F, verticals=T)
 lines(native_corrected_cdf, col="gray", do.point=F, verticals=T)
 
 legend("bottomright",
-  legend=c("hardware", "native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
-  col=c("green", "pink", "purple", "lightblue", "blue", "black", "gray"),
+  legend=c("socket", "hardware", "native control", "native monitored", "container control", "container monitored", "container corrected", "native corrected"),
+  col=c("darkgreen", "green", "pink", "purple", "lightblue", "blue", "black", "gray"),
   cex=0.8,
   lty=1,
   bg="white")
