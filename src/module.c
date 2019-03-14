@@ -71,13 +71,11 @@ static struct tracepoint *sys_exit_tracepoint;
 #define MACE_LATENCY_TABLE_BITS 8
 #define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
 
-struct mace_latency {
-  unsigned long long enter;
-  struct mace_namespace_entry *ns;
-  int valid;
-  u64 key;
-  spinlock_t lock;
-};
+
+struct mace_perturbation mace_sys_enter_pert;
+struct mace_perturbation mace_net_dev_start_xmit_pert;
+struct mace_perturbation mace_netif_receive_skb_pert;
+struct mace_perturbation mace_sys_exit_pert;
 
 // Egress latency table
 static struct mace_latency egress_latencies[MACE_LATENCY_TABLE_SIZE];
@@ -106,7 +104,7 @@ init_mace_tables(void)
 // Egress inner tracepoint
 //
 static void
-probe_sys_enter(void *unused, struct pt_regs *regs, long id)
+mace_probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
   struct mace_namespace_entry *ns;
   u64 key;
@@ -127,12 +125,13 @@ probe_sys_enter(void *unused, struct pt_regs *regs, long id)
     }
   }
 }
+EXPORT_SYMBOL(mace_probe_sys_enter);
 
 //
 // Egress outer tracepoint
 //
 static void
-probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *dev)
+mace_probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *dev)
 {
   struct iphdr *ip;
   u64 key;
@@ -169,7 +168,7 @@ probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *d
 // Ingress outer entry tracepoint.
 //
 static void
-probe_netif_receive_skb(void *unused, struct sk_buff *skb)
+mace_probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 {
   struct iphdr ip;
   struct iphdr *ip_ptr = &ip;
@@ -209,7 +208,7 @@ probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 // Ingress inner exit tracepoint
 //
 static void
-probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
+mace_probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
   struct user_msghdr msg;
   struct iovec iov;
@@ -262,19 +261,19 @@ test_and_set_traceprobe(struct tracepoint *tp, void *unused)
   int found = 0;
 
   if (!strcmp(tp->name, "sys_enter")) {
-    ret = tracepoint_probe_register(tp, probe_sys_enter, NULL);
+    ret = tracepoint_probe_register(tp, mace_probe_sys_enter, NULL);
     sys_enter_tracepoint = tp;
     found = 1;
   } else if (!strcmp(tp->name, "net_dev_start_xmit")) {
-    ret = tracepoint_probe_register(tp, probe_net_dev_start_xmit, NULL);
+    ret = tracepoint_probe_register(tp, mace_probe_net_dev_start_xmit, NULL);
     net_dev_start_xmit_tracepoint = tp;
     found = 1;
   } else if (!strcmp(tp->name, "netif_receive_skb")) {
-    ret = tracepoint_probe_register(tp, probe_netif_receive_skb, NULL);
+    ret = tracepoint_probe_register(tp, mace_probe_netif_receive_skb, NULL);
     netif_receive_skb_tracepoint = tp;
     found = 1;
   } else if (!strcmp(tp->name, "sys_exit")) {
-    ret = tracepoint_probe_register(tp, probe_sys_exit, NULL);
+    ret = tracepoint_probe_register(tp, mace_probe_sys_exit, NULL);
     sys_exit_tracepoint = tp;
     found = 1;
   }
@@ -326,6 +325,23 @@ mace_tsc_to_gettimeofday(unsigned long long tsc_val, struct timeval *tv)
     tv->tv_sec++;
     tv->tv_usec -= 1000000;
   }
+}
+
+
+//
+// Initialize pertubation counters
+//
+void
+mace_init_pert(void)
+{
+  mace_sys_enter_pert.sum = 0;
+  mace_sys_enter_pert.count = 0;
+  mace_net_dev_start_xmit_pert.sum = 0;
+  mace_net_dev_start_xmit_pert.count = 0;
+  mace_netif_receive_skb_pert.sum = 0;
+  mace_netif_receive_skb_pert.count = 0;
+  mace_sys_exit_pert.sum = 0;
+  mace_sys_exit_pert.count = 0;
 }
 
 //
@@ -381,19 +397,19 @@ mace_mod_exit(void)
 {
   // Unregister tracepoints
   if (sys_enter_tracepoint
-      && tracepoint_probe_unregister(sys_enter_tracepoint, probe_sys_enter, NULL)) {
+      && tracepoint_probe_unregister(sys_enter_tracepoint, mace_probe_sys_enter, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister sys_enter traceprobe.\n");
   }
   if (net_dev_start_xmit_tracepoint
-      && tracepoint_probe_unregister(net_dev_start_xmit_tracepoint, probe_net_dev_start_xmit, NULL)) {
+      && tracepoint_probe_unregister(net_dev_start_xmit_tracepoint, mace_probe_net_dev_start_xmit, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister net_dev_start_xmit traceprobe.\n");
   }
   if (netif_receive_skb_tracepoint
-      && tracepoint_probe_unregister(netif_receive_skb_tracepoint, probe_netif_receive_skb, NULL)) {
+      && tracepoint_probe_unregister(netif_receive_skb_tracepoint, mace_probe_netif_receive_skb, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister netif_receive_skb_tracepoint.\n");
   }
   if (sys_exit_tracepoint
-      && tracepoint_probe_unregister(sys_exit_tracepoint, probe_sys_exit, NULL)) {
+      && tracepoint_probe_unregister(sys_exit_tracepoint, mace_probe_sys_exit, NULL)) {
     printk(KERN_WARNING "Mace: Failed to unregister sys_exit traceprobe.\n");
   }
 

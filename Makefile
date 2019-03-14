@@ -1,6 +1,9 @@
 obj-m += mace.o
 mace-objs := src/module.o src/ring_buffer.o src/dev_file.o src/namespace_set.o
 
+CONFIG_DEBUG_INFO=y
+DEBUG_KPROBE_EVENT=y
+
 release := $(shell uname -r)
 
 all:

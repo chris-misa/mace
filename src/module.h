@@ -62,4 +62,17 @@
 void mace_tsc_offset_resync(void);
 void mace_tsc_to_gettimeofday(unsigned long long tsc_val, struct timeval *tv);
 
+struct mace_latency {
+  unsigned long long enter;
+  struct mace_namespace_entry *ns;
+  int valid;
+  u64 key;
+  spinlock_t lock;
+};
+
+struct mace_perturbation {
+  unsigned long long sum;
+  unsigned long long count;
+};
+
 #endif

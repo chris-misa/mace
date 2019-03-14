@@ -20,6 +20,14 @@ extern struct radix_tree_root mace_namespaces;
 //
 extern struct timeval mace_tsc_offset;
 
+//
+// Mace internal perturbation tracking from module.c
+//
+extern struct mace_perturbation mace_sys_enter_pert;
+extern struct mace_perturbation mace_net_dev_start_xmit_pert;
+extern struct mace_perturbation mace_netif_receive_skb_pert;
+extern struct mace_perturbation mace_sys_exit_pert;
+
 
 //
 // 'mace/on' class attribute
@@ -32,8 +40,37 @@ CLASS_ATTR_RW(on);
 // 'mace/sync' class attribute
 //
 static ssize_t sync_show(struct class *class, struct class_attribute *attr, char *buf);
-static ssize_t sync_store(struct class *class, struct class_attribute *attr, const char *but, size_t count);
+static ssize_t sync_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 CLASS_ATTR_RW(sync);
+
+
+//
+// 'mace/pert_sys_enter' class attribute
+//
+static ssize_t pert_sys_enter_show(struct class *class, struct class_attribute *attr, char *buf);
+static ssize_t pert_sys_enter_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
+CLASS_ATTR_RW(pert_sys_enter);
+
+//
+// 'mace/pert_net_dev_start_xmit' class attribute
+//
+static ssize_t pert_net_dev_start_xmit_show(struct class *class, struct class_attribute *attr, char *buf);
+static ssize_t pert_net_dev_start_xmit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
+CLASS_ATTR_RW(pert_net_dev_start_xmit);
+
+//
+// 'mace/pert_netif_receive_skb' class attribute
+//
+static ssize_t pert_netif_receive_skb_show(struct class *class, struct class_attribute *attr, char *buf);
+static ssize_t pert_netif_receive_skb_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
+CLASS_ATTR_RW(pert_netif_receive_skb);
+
+//
+// 'mace/pert_sys_exit' class attribute
+//
+static ssize_t pert_sys_exit_show(struct class *class, struct class_attribute *attr, char *buf);
+static ssize_t pert_sys_exit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
+CLASS_ATTR_RW(pert_sys_exit);
 
 
 //
@@ -87,12 +124,33 @@ mace_init_dev(void)
     goto exit_error;
   }
 
+  // Add 'on' attribute
   if (class_create_file(latency_queue_class, &class_attr_on) < 0) {
     printk(KERN_INFO "Mace: failed to create 'on' class attribute\n");
     goto exit_error;
   }
+
+  // Add 'sync' attribute
   if (class_create_file(latency_queue_class, &class_attr_sync) < 0) {
     printk(KERN_INFO "Mace: failed to create 'sync' class attribute\n");
+    goto exit_error;
+  }
+
+  // Add perturbation attributes
+  if (class_create_file(latency_queue_class, &class_attr_pert_sys_enter) < 0) {
+    printk(KERN_INFO "Mace: failed to create 'per_sys_enter' class attribute\n");
+    goto exit_error;
+  }
+  if (class_create_file(latency_queue_class, &class_attr_pert_net_dev_start_xmit) < 0) {
+    printk(KERN_INFO "Mace: failed to create 'pert_net_dev_start_xmit' class attribute\n");
+    goto exit_error;
+  }
+  if (class_create_file(latency_queue_class, &class_attr_pert_netif_receive_skb) < 0) {
+    printk(KERN_INFO "Mace: failed to create 'pert_netif_receive_skb' class attribute\n");
+    goto exit_error;
+  }
+  if (class_create_file(latency_queue_class, &class_attr_pert_sys_exit) < 0) {
+    printk(KERN_INFO "Mace: failed to create 'pert_sys_exit' class attribute\n");
     goto exit_error;
   }
 
@@ -292,3 +350,85 @@ sync_store(struct class *class, struct class_attribute *attr, const char *but, s
   mace_tsc_offset_resync();
   return count;
 }
+
+
+//
+// 'mace/pert_sys_enter' class attribute
+//
+static ssize_t
+pert_sys_enter_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+  ssize_t offset = 0;
+  offset += snprintf(buf + offset,
+                     PAGE_SIZE - offset,
+                     "%llu\n",
+                     mace_sys_enter_pert.sum / mace_sys_enter_pert.count);
+  return offset;
+}
+static ssize_t
+pert_sys_enter_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+  return count;
+}
+
+//
+// 'mace/pert_net_dev_start_xmit' class attribute
+//
+static ssize_t
+pert_net_dev_start_xmit_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+  ssize_t offset = 0;
+  offset += snprintf(buf + offset,
+                     PAGE_SIZE - offset,
+                     "%llu\n",
+                     mace_net_dev_start_xmit_pert.sum / mace_net_dev_start_xmit_pert.count);
+  return offset;
+}
+static ssize_t
+pert_net_dev_start_xmit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+  return count;
+}
+
+
+
+//
+// 'mace/pert_netif_receive_skb' class attribute
+//
+static ssize_t
+pert_netif_receive_skb_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+  ssize_t offset = 0;
+  offset += snprintf(buf + offset,
+                     PAGE_SIZE - offset,
+                     "%llu\n",
+                     mace_netif_receive_skb_pert.sum / mace_netif_receive_skb_pert.count);
+  return offset;
+}
+static ssize_t
+pert_netif_receive_skb_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+  return count;
+}
+
+
+
+//
+// 'mace/pert_sys_exit' class attribute
+//
+static ssize_t
+pert_sys_exit_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+  ssize_t offset = 0;
+  offset += snprintf(buf + offset,
+                     PAGE_SIZE - offset,
+                     "%llu\n",
+                     mace_sys_exit_pert.sum / mace_sys_exit_pert.count);
+  return offset;
+}
+static ssize_t
+pert_sys_exit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+  return count;
+}
+
