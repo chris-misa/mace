@@ -106,6 +106,7 @@ init_mace_tables(void)
 static void
 mace_probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
+  unsigned long long enter = rdtsc();
   struct mace_namespace_entry *ns;
   u64 key;
   struct res;
@@ -122,10 +123,12 @@ mace_probe_sys_enter(void *unused, struct pt_regs *regs, long id)
       // key = *((u64 *)regs->si);
       copy_from_user(&key, (void *)regs->si, sizeof(u64));
       register_entry(egress_latencies, key, ns);
+
+      mace_sys_enter_pert.sum += rdtsc() - enter;
+      mace_sys_enter_pert.count++;
     }
   }
 }
-EXPORT_SYMBOL(mace_probe_sys_enter);
 
 //
 // Egress outer tracepoint
@@ -133,6 +136,7 @@ EXPORT_SYMBOL(mace_probe_sys_enter);
 static void
 mace_probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *dev)
 {
+  unsigned long long enter = rdtsc();
   struct iphdr *ip;
   u64 key;
   unsigned long pktid;
@@ -161,6 +165,8 @@ mace_probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_devi
       }
     }
 #endif
+    mace_net_dev_start_xmit_pert.sum += rdtsc() - enter;
+    mace_net_dev_start_xmit_pert.count++;
   }
 }
 
@@ -170,6 +176,7 @@ mace_probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_devi
 static void
 mace_probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 {
+  unsigned long long enter = rdtsc();
   struct iphdr ip;
   struct iphdr *ip_ptr = &ip;
   u64 key;
@@ -201,6 +208,9 @@ mace_probe_netif_receive_skb(void *unused, struct sk_buff *skb)
       }
     }
 #endif
+
+    mace_netif_receive_skb_pert.sum += rdtsc() - enter;
+    mace_netif_receive_skb_pert.count++;
   }
 }
 
@@ -210,6 +220,7 @@ mace_probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 static void
 mace_probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
+  unsigned long long enter = rdtsc();
   struct user_msghdr msg;
   struct iovec iov;
   struct iphdr ip;
@@ -247,6 +258,8 @@ mace_probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
         d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
       }
 #endif
+      mace_sys_exit_pert.sum += rdtsc() - enter;
+      mace_sys_exit_pert.count++;
     }
   }
 }
