@@ -106,7 +106,7 @@ init_mace_tables(void)
 static void
 mace_probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
-  unsigned long long enter = rdtsc();
+  START_PERT_TIMER(enter);
   struct mace_namespace_entry *ns;
   u64 key;
   struct res;
@@ -124,8 +124,7 @@ mace_probe_sys_enter(void *unused, struct pt_regs *regs, long id)
       copy_from_user(&key, (void *)regs->si, sizeof(u64));
       register_entry(egress_latencies, key, ns);
 
-      mace_sys_enter_pert.sum += rdtsc() - enter;
-      mace_sys_enter_pert.count++;
+      STOP_PERT_TIMER(enter, mace_sys_enter_pert);
     }
   }
 }
@@ -136,7 +135,7 @@ mace_probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 static void
 mace_probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *dev)
 {
-  unsigned long long enter = rdtsc();
+  START_PERT_TIMER(enter);
   struct iphdr *ip;
   u64 key;
   unsigned long pktid;
@@ -165,8 +164,8 @@ mace_probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_devi
       }
     }
 #endif
-    mace_net_dev_start_xmit_pert.sum += rdtsc() - enter;
-    mace_net_dev_start_xmit_pert.count++;
+
+    STOP_PERT_TIMER(enter, mace_net_dev_start_xmit_pert);
   }
 }
 
@@ -176,7 +175,7 @@ mace_probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_devi
 static void
 mace_probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 {
-  unsigned long long enter = rdtsc();
+  START_PERT_TIMER(enter);
   struct iphdr ip;
   struct iphdr *ip_ptr = &ip;
   u64 key;
@@ -209,8 +208,7 @@ mace_probe_netif_receive_skb(void *unused, struct sk_buff *skb)
     }
 #endif
 
-    mace_netif_receive_skb_pert.sum += rdtsc() - enter;
-    mace_netif_receive_skb_pert.count++;
+    STOP_PERT_TIMER(enter, mace_netif_receive_skb_pert);
   }
 }
 
@@ -220,7 +218,7 @@ mace_probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 static void
 mace_probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
-  unsigned long long enter = rdtsc();
+  START_PERT_TIMER(enter);
   struct user_msghdr msg;
   struct iovec iov;
   struct iphdr ip;
@@ -258,8 +256,8 @@ mace_probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
         d_ptr[4], d_ptr[5], d_ptr[6], d_ptr[7]);
       }
 #endif
-      mace_sys_exit_pert.sum += rdtsc() - enter;
-      mace_sys_exit_pert.count++;
+
+      STOP_PERT_TIMER(enter, mace_sys_exit_pert);
     }
   }
 }
@@ -392,6 +390,9 @@ mace_mod_init(void)
   if (mace_init_dev() < 0) {
     return -1;
   }
+
+  // Initialize perturbation counters
+  mace_init_pert();
 
   // Gettimeofday sync
   mace_tsc_offset_resync();

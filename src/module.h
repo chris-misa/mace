@@ -75,4 +75,11 @@ struct mace_perturbation {
   unsigned long long count;
 };
 
+#define START_PERT_TIMER(timer_name) \
+  unsigned long long timer_name = rdtsc();
+
+#define STOP_PERT_TIMER(timer_name, target_pert) \
+  (target_pert).sum += rdtsc() - timer_name; \
+  (target_pert).count++;
+
 #endif
