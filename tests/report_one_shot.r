@@ -244,38 +244,47 @@ container_monitored_cdf <- ecdf(rtts$container_monitored$rtt)
 
 container_corrected_cdf <- ecdf(container_corrected$rtt)
 native_corrected_cdf <- ecdf(native_corrected$rtt)
+
 #
 # Write out summary stats
 #
 dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
 			      sd=sd(rtts$native_control$rtt),
+			      len=length(rtts$native_control$rtt),
 			      median=median(rtts$native_control$rtt)),
           native_control_hw=list(mean=mean(rtts$native_control_hw$rtt),
 			      sd=sd(rtts$native_control_hw$rtt),
+			      len=length(rtts$native_control_hw$rtt),
 			      median=median(rtts$native_control_hw$rtt)),
           native_control_socket=list(mean=mean(rtts$native_control_socket$rtt),
 			      sd=sd(rtts$native_control_socket$rtt),
+			      len=length(rtts$native_control_socket$rtt),
 			      median=median(rtts$native_control_socket$rtt)),
-	  native_monitored=list(mean=mean(rtts$native_monitored$rtt),
-				sd=sd(rtts$native_monitored$rtt),
-				median=median(rtts$native_monitored$rtt)),
-	  container_control=list(mean=mean(rtts$container_control$rtt),
-				 sd=sd(rtts$container_control$rtt),
-				 median=median(rtts$container_control$rtt)),
-	  container_monitored=list(mean=mean(rtts$container_monitored$rtt),
-				   sd=sd(rtts$container_monitored$rtt),
-				   median=median(rtts$container_monitored$rtt)),
-	  container_corrected=list(mean=mean(container_corrected$rtt),
-			 sd=sd(container_corrected$rtt),
-			 median=median(container_corrected$rtt)),
-	  native_corrected=list(mean=mean(native_corrected$rtt),
-			 sd=sd(native_corrected$rtt),
-			 median=median(native_corrected$rtt)),
-    native_pert_area = cdfArea(native_control_cdf, native_monitored_cdf),
-    container_pert_area = cdfArea(container_control_cdf, container_monitored_cdf),
-    native_corrected_area = cdfArea(native_control_hw_cdf, native_corrected_cdf),
-    container_corrected_area = cdfArea(native_control_hw_cdf, container_corrected_cdf)),
-     file=SUMMARY_DATA_PATH)
+	        native_monitored=list(mean=mean(rtts$native_monitored$rtt),
+		      	sd=sd(rtts$native_monitored$rtt),
+		      	len=length(rtts$native_monitored$rtt),
+		      	median=median(rtts$native_monitored$rtt)),
+	        container_control=list(mean=mean(rtts$container_control$rtt),
+	          sd=sd(rtts$container_control$rtt),
+	          len=length(rtts$container_control$rtt),
+	          median=median(rtts$container_control$rtt)),
+	        container_monitored=list(mean=mean(rtts$container_monitored$rtt),
+	          sd=sd(rtts$container_monitored$rtt),
+	          len=length(rtts$container_monitored$rtt),
+	          median=median(rtts$container_monitored$rtt)),
+	        container_corrected=list(mean=mean(container_corrected$rtt),
+	      	  sd=sd(container_corrected$rtt),
+	      	  len=length(container_corrected$rtt),
+	      	  median=median(container_corrected$rtt)),
+	        native_corrected=list(mean=mean(native_corrected$rtt),
+	      	  sd=sd(native_corrected$rtt),
+	      	  len=length(native_corrected$rtt),
+	      	  median=median(native_corrected$rtt)),
+          native_pert_area = cdfArea(native_control_cdf, native_monitored_cdf),
+          container_pert_area = cdfArea(container_control_cdf, container_monitored_cdf),
+          native_corrected_area = cdfArea(native_control_hw_cdf, native_corrected_cdf),
+          container_corrected_area = cdfArea(native_control_hw_cdf, container_corrected_cdf)),
+           file=SUMMARY_DATA_PATH)
 
 #
 # Draw cdfs

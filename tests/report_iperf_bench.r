@@ -17,6 +17,27 @@ if (length(args) != 1) {
 data_path <- args[1]
 
 #
+# Compute rough confidence interval
+#
+confidence <- 0.90
+getConfidence <- function(sd, length) {
+  a <- confidence + 0.5 * (1.0 - confidence)
+  t_an <- qt(a, df=length-1)
+  t_an * sd / sqrt(length)
+}
+
+#
+# Work around to draw intervals around
+# points in graph
+#
+drawArrows <- function(xs, ys, sds, color) {
+  arrows(xs, ys - sds,
+         xs, ys + sds,
+         length=0.01, angle=90, code=3, col=color)
+}
+
+
+#
 # Begin main work
 #
 
@@ -24,13 +45,14 @@ data_path <- args[1]
 #
 # Collect means and sds from all traffic settings
 #
-native_control <- list(mean=c(), median=c(), sd=c())
-native_control_hw <- list(mean=c(), median=c(), sd=c())
-native_monitored <- list(mean=c(), median=c(), sd=c())
-container_control <- list(mean=c(), median=c(), sd=c())
-container_monitored <- list(mean=c(), median=c(), sd=c())
-container_corrected <- list(mean=c(), median=c(), sd=c())
-native_corrected <- list(mean=c(), median=c(), sd=c())
+native_control <- list(mean=c(), median=c(), sd=c(), len=c())
+native_control_hw <- list(mean=c(), median=c(), sd=c(), len=c())
+native_control_socket <- list(mean=c(), median=c(), sd=c(), len=c())
+native_monitored <- list(mean=c(), median=c(), sd=c(), len=c())
+container_control <- list(mean=c(), median=c(), sd=c(), len=c())
+container_monitored <- list(mean=c(), median=c(), sd=c(), len=c())
+container_corrected <- list(mean=c(), median=c(), sd=c(), len=c())
+native_corrected <- list(mean=c(), median=c(), sd=c(), len=c())
 native_pert_areas <- c()
 container_pert_areas <- c()
 native_corrected_areas <- c()
@@ -52,30 +74,42 @@ while (T) {
 	native_control$mean <- c(native_control$mean, data$native_control$mean)
 	native_control$median <- c(native_control$median, data$native_control$median)
 	native_control$sd <- c(native_control$sd, data$native_control$sd)
+	native_control$len <- c(native_control$len, data$native_control$len)
 
 	native_control_hw$mean <- c(native_control_hw$mean, data$native_control_hw$mean)
 	native_control_hw$median <- c(native_control_hw$median, data$native_control_hw$median)
 	native_control_hw$sd <- c(native_control_hw$sd, data$native_control_hw$sd)
+	native_control_hw$len <- c(native_control_hw$len, data$native_control_hw$len)
+
+	native_control_socket$mean <- c(native_control_socket$mean, data$native_control_socket$mean)
+	native_control_socket$median <- c(native_control_socket$median, data$native_control_socket$median)
+	native_control_socket$sd <- c(native_control_socket$sd, data$native_control_socket$sd)
+	native_control_socket$len <- c(native_control_socket$len, data$native_control_socket$len)
 
 	native_monitored$mean <- c(native_monitored$mean, data$native_monitored$mean)
 	native_monitored$median <- c(native_monitored$median, data$native_monitored$median)
 	native_monitored$sd <- c(native_monitored$sd, data$native_monitored$sd)
+	native_monitored$len <- c(native_monitored$len, data$native_monitored$len)
 
 	container_control$mean <- c(container_control$mean, data$container_control$mean)
 	container_control$median <- c(container_control$median, data$container_control$median)
 	container_control$sd <- c(container_control$sd, data$container_control$sd)
+	container_control$len <- c(container_control$len, data$container_control$len)
 
 	container_monitored$mean <- c(container_monitored$mean, data$container_monitored$mean)
 	container_monitored$median <- c(container_monitored$median, data$container_monitored$median)
 	container_monitored$sd <- c(container_monitored$sd, data$container_monitored$sd)
+	container_monitored$len <- c(container_monitored$len, data$container_monitored$len)
 
 	container_corrected$mean <- c(container_corrected$mean, data$container_corrected$mean)
 	container_corrected$median <- c(container_corrected$median, data$container_corrected$median)
 	container_corrected$sd <- c(container_corrected$sd, data$container_corrected$sd)
+	container_corrected$len <- c(container_corrected$len, data$container_corrected$len)
 
 	native_corrected$mean <- c(native_corrected$mean, data$native_corrected$mean)
 	native_corrected$median <- c(native_corrected$median, data$native_corrected$median)
 	native_corrected$sd <- c(native_corrected$sd, data$native_corrected$sd)
+	native_corrected$len <- c(native_corrected$len, data$native_corrected$len)
 
   native_pert_areas <- c(native_pert_areas , data$native_pert_area)
   container_pert_areas <- c(container_pert_areas, data$container_pert_area)
@@ -195,8 +229,6 @@ legend("topleft",
   bg="white")
 dev.off()
 
-
-
 #
 # Draw line plot of sds for just un-monitored traces
 #
@@ -220,42 +252,51 @@ legend("topleft",
   bg="white")
 dev.off()
 
-
 #
-# Plot perturbation areas
+# Line plot of differences to hardware mean
 #
 xbnds <- range(container_counts)
-ybnds <- c(0, max(container_pert_areas))
-pdf(file=paste(data_path, "/perturbation_areas.pdf", sep=""))
-par(mar=c(4, 5, 2, 2))
-
-barplot(rbind(native_pert_areas, container_pert_areas), col=c("red", "blue"),
+ybnds <- c(0, max(native_control$mean - native_control_hw$mean))
+pdf(file=paste(data_path, "/mean_diffs.pdf", sep=""))
+plot(0, type="n", ylim=ybnds, xlim=xbnds,
      xlab="Number of traffic flows",
-     ylab=expression("MSE", sep=""),
-     main="",
-     beside=T,
-     names.arg=c(0,5,10,15,20),
-     legend=c("native", "container"))
+     ylab=expression(paste("RTT Mean Difference (",mu,"s)", sep="")),
+     main="")
 
+lines(container_counts, native_control$mean - native_control_hw$mean, col="pink", type="l")
+lines(container_counts, native_corrected$mean - native_control_hw$mean, col="gray", type="l")
+lines(container_counts, container_corrected$mean - native_control_hw$mean, col="black", type="l")
+
+legend("topleft",
+  legend=c("Native", "Native Corrected", "Container Corrected"),
+  col=c("pink", "gray", "black"),
+  cex=0.8,
+  lty=1,
+  bg="white")
 dev.off()
 
+
 #
-# Plot distance to hardware
+# Line plot of differences to hardware median
 #
 xbnds <- range(container_counts)
-ybnds <- c(0, max(container_corrected_areas))
-pdf(file=paste(data_path, "/corrected_areas.pdf", sep=""))
-par(mar=c(4, 5, 2, 2))
-
-barplot(rbind(native_corrected_areas, container_corrected_areas), col=c("red", "blue"),
+ybnds <- c(0, max(native_control$median - native_control_hw$median))
+pdf(file=paste(data_path, "/median_diffs.pdf", sep=""))
+plot(0, type="n", ylim=ybnds, xlim=xbnds,
      xlab="Number of traffic flows",
-     ylab=expression("MSE", sep=""),
-     main="",
-     beside=T,
-     names.arg=c(0,5,10,15,20),
-     args.legend=list(x="topleft"),
-     legend=c("native", "container"))
+     ylab=expression(paste("RTT Median Difference (",mu,"s)", sep="")),
+     main="")
 
+lines(container_counts, native_control_socket$median - native_control_hw$median, col="darkgreen", type="l")
+lines(container_counts, native_corrected$median - native_control_hw$median, col="gray", type="l")
+lines(container_counts, container_corrected$median - native_control_hw$median, col="black", type="l")
+
+legend("topleft",
+  legend=c("Native Reference", "Native Corrected", "Container Corrected"),
+  col=c("darkgreen", "gray", "black"),
+  cex=0.8,
+  lty=1,
+  bg="white")
 dev.off()
 
 
