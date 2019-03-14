@@ -255,21 +255,38 @@ dev.off()
 #
 # Line plot of differences to hardware mean
 #
+
+native_control_socket_conf <- getConfidence(native_control_socket$sd, native_control_socket$len)
+native_corrected_conf <- getConfidence(native_corrected$sd, native_corrected$len)
+container_corrected_conf <- getConfidence(container_corrected$sd, container_corrected$len)
+
 xbnds <- range(container_counts)
-ybnds <- c(0, max(native_control$mean - native_control_hw$mean))
+ybnds <- c(0, max(native_control_socket$mean - native_control_hw$mean))
 pdf(file=paste(data_path, "/mean_diffs.pdf", sep=""))
 plot(0, type="n", ylim=ybnds, xlim=xbnds,
      xlab="Number of traffic flows",
      ylab=expression(paste("RTT Mean Difference (",mu,"s)", sep="")),
      main="")
 
-lines(container_counts, native_control$mean - native_control_hw$mean, col="pink", type="l")
+lines(container_counts, native_control_socket$mean - native_control_hw$mean, col="green", type="l")
+drawArrows(container_counts,
+           native_control_socket$mean - native_control_hw$mean,
+           native_control_socket_conf,
+           "green")
 lines(container_counts, native_corrected$mean - native_control_hw$mean, col="gray", type="l")
+drawArrows(container_counts,
+           native_corrected$mean - native_control_hw$mean,
+           native_corrected_conf,
+           "gray")
 lines(container_counts, container_corrected$mean - native_control_hw$mean, col="black", type="l")
+drawArrows(container_counts,
+           container_corrected$mean - native_control_hw$mean,
+           container_corrected_conf,
+           "black")
 
 legend("topleft",
-  legend=c("Native", "Native Corrected", "Container Corrected"),
-  col=c("pink", "gray", "black"),
+  legend=c("Native Reference", "Native Corrected", "Container Corrected"),
+  col=c("green", "gray", "black"),
   cex=0.8,
   lty=1,
   bg="white")
@@ -280,7 +297,7 @@ dev.off()
 # Line plot of differences to hardware median
 #
 xbnds <- range(container_counts)
-ybnds <- c(0, max(native_control$median - native_control_hw$median))
+ybnds <- c(0, max(native_control_socket$median - native_control_hw$median))
 pdf(file=paste(data_path, "/median_diffs.pdf", sep=""))
 plot(0, type="n", ylim=ybnds, xlim=xbnds,
      xlab="Number of traffic flows",

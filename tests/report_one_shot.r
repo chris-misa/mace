@@ -95,7 +95,7 @@ applyLatencies <- function(in_rtts, ingresses, egresses) {
     cat("Dropped", dropped, "rtts due to incomplete latency data\n")
   }
 
-  data.frame(rtt=res, ts=tss, seq=seqs)
+  data.frame(rtt=res, ts=tss, seq=seqs, drop=dropped)
 }
 
 #
@@ -275,10 +275,12 @@ dput(list(native_control=list(mean=mean(rtts$native_control$rtt),
 	        container_corrected=list(mean=mean(container_corrected$rtt),
 	      	  sd=sd(container_corrected$rtt),
 	      	  len=length(container_corrected$rtt),
+	      	  drop=container_corrected$drop,
 	      	  median=median(container_corrected$rtt)),
 	        native_corrected=list(mean=mean(native_corrected$rtt),
 	      	  sd=sd(native_corrected$rtt),
 	      	  len=length(native_corrected$rtt),
+	      	  drop=native_corrected$drop,
 	      	  median=median(native_corrected$rtt)),
           native_pert_area = cdfArea(native_control_cdf, native_monitored_cdf),
           container_pert_area = cdfArea(container_control_cdf, container_monitored_cdf),
