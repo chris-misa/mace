@@ -12,11 +12,9 @@ MAX_CPUS=16 # Total number of CPUs to use on this machine
 
 export B="===================="
 
-# Changing this will break correlation
 export NUM_ROUNDS=5
 
 export PING_ARGS="-D -i 0.0 -s 1472 -c 2000"
-
 export TARGET="10.10.1.2"
 
 export OUTER_DEV_ID=3
