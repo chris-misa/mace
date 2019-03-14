@@ -359,10 +359,12 @@ static ssize_t
 pert_sys_enter_show(struct class *class, struct class_attribute *attr, char *buf)
 {
   ssize_t offset = 0;
-  offset += snprintf(buf + offset,
-                     PAGE_SIZE - offset,
-                     "%llu\n",
-                     mace_sys_enter_pert.sum / mace_sys_enter_pert.count);
+  if (mace_sys_enter_pert.count != 0) {
+    offset += snprintf(buf + offset,
+                       PAGE_SIZE - offset,
+                       "%llu\n",
+                       mace_sys_enter_pert.sum / mace_sys_enter_pert.count);
+  }
   return offset;
 }
 static ssize_t
@@ -378,10 +380,12 @@ static ssize_t
 pert_net_dev_start_xmit_show(struct class *class, struct class_attribute *attr, char *buf)
 {
   ssize_t offset = 0;
-  offset += snprintf(buf + offset,
-                     PAGE_SIZE - offset,
-                     "%llu\n",
-                     mace_net_dev_start_xmit_pert.sum / mace_net_dev_start_xmit_pert.count);
+  if (mace_net_dev_start_xmit_pert.count != 0) {
+    offset += snprintf(buf + offset,
+                       PAGE_SIZE - offset,
+                       "%llu\n",
+                       mace_net_dev_start_xmit_pert.sum / mace_net_dev_start_xmit_pert.count);
+  }
   return offset;
 }
 static ssize_t
@@ -399,10 +403,12 @@ static ssize_t
 pert_netif_receive_skb_show(struct class *class, struct class_attribute *attr, char *buf)
 {
   ssize_t offset = 0;
-  offset += snprintf(buf + offset,
-                     PAGE_SIZE - offset,
-                     "%llu\n",
-                     mace_netif_receive_skb_pert.sum / mace_netif_receive_skb_pert.count);
+  if (mace_netif_receive_skb_pert.count != 0) {
+    offset += snprintf(buf + offset,
+                       PAGE_SIZE - offset,
+                       "%llu\n",
+                       mace_netif_receive_skb_pert.sum / mace_netif_receive_skb_pert.count);
+  }
   return offset;
 }
 static ssize_t
@@ -420,10 +426,12 @@ static ssize_t
 pert_sys_exit_show(struct class *class, struct class_attribute *attr, char *buf)
 {
   ssize_t offset = 0;
+  if (mace_sys_exit_pert.count != 0) {
   offset += snprintf(buf + offset,
                      PAGE_SIZE - offset,
                      "%llu\n",
                      mace_sys_exit_pert.sum / mace_sys_exit_pert.count);
+  }
   return offset;
 }
 static ssize_t

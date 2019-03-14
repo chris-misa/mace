@@ -106,10 +106,10 @@ init_mace_tables(void)
 static void
 mace_probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 {
-  START_PERT_TIMER(enter);
   struct mace_namespace_entry *ns;
   u64 key;
   struct res;
+  START_PERT_TIMER(enter);
 
   // Filter for sendto syscalls
   if (id == SYSCALL_SENDTO) {
@@ -135,10 +135,10 @@ mace_probe_sys_enter(void *unused, struct pt_regs *regs, long id)
 static void
 mace_probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_device *dev)
 {
-  START_PERT_TIMER(enter);
   struct iphdr *ip;
   u64 key;
   unsigned long pktid;
+  START_PERT_TIMER(enter);
   
   // Filter for outer devices
   if (mace_in_set(dev->ifindex, outer_devs)) {
@@ -175,11 +175,11 @@ mace_probe_net_dev_start_xmit(void *unused, struct sk_buff *skb, struct net_devi
 static void
 mace_probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 {
-  START_PERT_TIMER(enter);
   struct iphdr ip;
   struct iphdr *ip_ptr = &ip;
   u64 key;
   u64 *key_ptr = &key;
+  START_PERT_TIMER(enter);
 
   // Filter for outer device
   if (skb->dev && mace_in_set(skb->dev->ifindex, outer_devs)) {
@@ -218,13 +218,13 @@ mace_probe_netif_receive_skb(void *unused, struct sk_buff *skb)
 static void
 mace_probe_sys_exit(void *unused, struct pt_regs *regs, long ret)
 {
-  START_PERT_TIMER(enter);
   struct user_msghdr msg;
   struct iovec iov;
   struct iphdr ip;
   u64 key;
   struct mace_namespace_entry *ns = NULL;
   unsigned long pktid;
+  START_PERT_TIMER(enter);
 
   // Filter by syscall number
   if (syscall_get_nr(current, regs) == SYSCALL_RECVMSG) {
