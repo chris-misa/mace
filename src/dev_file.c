@@ -370,6 +370,7 @@ pert_sys_enter_show(struct class *class, struct class_attribute *attr, char *buf
 static ssize_t
 pert_sys_enter_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
 {
+  CLEAR_PERT_COUNTER(mace_sys_enter_pert);
   return count;
 }
 
@@ -391,6 +392,7 @@ pert_net_dev_start_xmit_show(struct class *class, struct class_attribute *attr, 
 static ssize_t
 pert_net_dev_start_xmit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
 {
+  CLEAR_PERT_COUNTER(mace_net_dev_start_xmit_pert);
   return count;
 }
 
@@ -414,6 +416,7 @@ pert_netif_receive_skb_show(struct class *class, struct class_attribute *attr, c
 static ssize_t
 pert_netif_receive_skb_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
 {
+  CLEAR_PERT_COUNTER(mace_netif_receive_skb_pert);
   return count;
 }
 
@@ -437,6 +440,7 @@ pert_sys_exit_show(struct class *class, struct class_attribute *attr, char *buf)
 static ssize_t
 pert_sys_exit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
 {
+  CLEAR_PERT_COUNTER(mace_sys_exit_pert);
   return count;
 }
 

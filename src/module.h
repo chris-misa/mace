@@ -70,6 +70,10 @@ struct mace_latency {
   spinlock_t lock;
 };
 
+
+//
+// In-house direct perturbation monitoring
+//
 struct mace_perturbation {
   unsigned long long sum;
   unsigned long long count;
@@ -81,5 +85,9 @@ struct mace_perturbation {
 #define STOP_PERT_TIMER(timer_name, target_pert) \
   (target_pert).sum += rdtsc() - timer_name; \
   (target_pert).count++;
+
+#define CLEAR_PERT_COUNTER(target_pert) \
+  (target_pert).sum = 0; \
+  (target_pert).count = 0;
 
 #endif
