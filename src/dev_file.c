@@ -363,7 +363,7 @@ pert_sys_enter_show(struct class *class, struct class_attribute *attr, char *buf
     offset += snprintf(buf + offset,
                        PAGE_SIZE - offset,
                        "%llu\n",
-                       mace_sys_enter_pert.sum / mace_sys_enter_pert.count);
+                       mace_cycles_to_ns(mace_sys_enter_pert.sum / mace_sys_enter_pert.count));
   }
   return offset;
 }
@@ -385,7 +385,7 @@ pert_net_dev_start_xmit_show(struct class *class, struct class_attribute *attr, 
     offset += snprintf(buf + offset,
                        PAGE_SIZE - offset,
                        "%llu\n",
-                       mace_net_dev_start_xmit_pert.sum / mace_net_dev_start_xmit_pert.count);
+                       mace_cycles_to_ns(mace_net_dev_start_xmit_pert.sum / mace_net_dev_start_xmit_pert.count));
   }
   return offset;
 }
@@ -409,7 +409,7 @@ pert_netif_receive_skb_show(struct class *class, struct class_attribute *attr, c
     offset += snprintf(buf + offset,
                        PAGE_SIZE - offset,
                        "%llu\n",
-                       mace_netif_receive_skb_pert.sum / mace_netif_receive_skb_pert.count);
+                       mace_cycles_to_ns(mace_netif_receive_skb_pert.sum / mace_netif_receive_skb_pert.count));
   }
   return offset;
 }
@@ -433,7 +433,7 @@ pert_sys_exit_show(struct class *class, struct class_attribute *attr, char *buf)
   offset += snprintf(buf + offset,
                      PAGE_SIZE - offset,
                      "%llu\n",
-                     mace_sys_exit_pert.sum / mace_sys_exit_pert.count);
+                     mace_cycles_to_ns(mace_sys_exit_pert.sum / mace_sys_exit_pert.count));
   }
   return offset;
 }
