@@ -51,8 +51,8 @@ native_control_socket <- list(mean=c(), median=c(), sd=c(), len=c())
 native_monitored <- list(mean=c(), median=c(), sd=c(), len=c())
 container_control <- list(mean=c(), median=c(), sd=c(), len=c())
 container_monitored <- list(mean=c(), median=c(), sd=c(), len=c())
-container_corrected <- list(mean=c(), median=c(), sd=c(), len=c())
-native_corrected <- list(mean=c(), median=c(), sd=c(), len=c())
+container_corrected <- list(mean=c(), median=c(), sd=c(), len=c(), drop=c())
+native_corrected <- list(mean=c(), median=c(), sd=c(), len=c(), drop=c())
 native_pert_areas <- c()
 container_pert_areas <- c()
 native_corrected_areas <- c()
@@ -105,11 +105,13 @@ while (T) {
 	container_corrected$median <- c(container_corrected$median, data$container_corrected$median)
 	container_corrected$sd <- c(container_corrected$sd, data$container_corrected$sd)
 	container_corrected$len <- c(container_corrected$len, data$container_corrected$len)
+  container_corrected$drop <- c(container_corrected$drop, data$container_corrected$drop)
 
 	native_corrected$mean <- c(native_corrected$mean, data$native_corrected$mean)
 	native_corrected$median <- c(native_corrected$median, data$native_corrected$median)
 	native_corrected$sd <- c(native_corrected$sd, data$native_corrected$sd)
-	native_corrected$len <- c(native_corrected$len, data$native_corrected$len)
+  native_corrected$len <- c(native_corrected$len, data$native_corrected$len)
+  native_corrected$drop <- c(native_corrected$drop, data$native_corrected$drop)
 
   native_pert_areas <- c(native_pert_areas , data$native_pert_area)
   container_pert_areas <- c(container_pert_areas, data$container_pert_area)
@@ -315,6 +317,34 @@ legend("topleft",
   lty=1,
   bg="white")
 dev.off()
+
+#
+# Draw packet drop lines
+#
+
+container_drops <- 100 * container_corrected$len / container_monitored$len
+native_drops <- 100 * native_corrected$len / native_monitored$len
+
+xbnds <- range(container_counts)
+ybnds <- range(container_drops, native_drops)
+pdf(file=paste(data_path, "/packet_drop.pdf", sep=""))
+plot(0, type="n", ylim=ybnds, xlim=xbnds,
+     xlab="Number of traffic flows",
+     ylab="Percent packets",
+     main="")
+
+lines(container_counts, native_drops, col="gray", type="l")
+lines(container_counts, container_drops, col="black", type="l")
+
+legend("topright",
+  legend=c("Native", "Container"),
+  col=c("gray", "black"),
+  cex=0.8,
+  lty=1,
+  bg="white")
+dev.off()
+
+
 
 
 cat("Done.\n")
