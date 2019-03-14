@@ -13,9 +13,9 @@ MAX_CPUS=16 # Total number of CPUs to use on this machine
 export B="===================="
 
 # Changing this will break correlation
-export NUM_ROUNDS=1
+export NUM_ROUNDS=5
 
-export PING_ARGS="-D -i 0.0 -s 1472 -c 3000"
+export PING_ARGS="-D -i 0.0 -s 1472 -c 2000"
 
 export TARGET="10.10.1.2"
 
@@ -32,7 +32,8 @@ export PING_CONTAINER_IMAGE="chrismisa/slow-ping"
 export PING_CONTAINER_NAME="ping-container"
 
 export EXEC_ONE_SHOT_CMD="$(pwd)/one_shot.sh"
-export ADD_IPERF_PAIR_CMD="$(pwd)/add_container_iperf_pair.sh"
+export ADD_IPERF_PAIR_CMD="$(pwd)/add_container_ping_remote.sh"
+export BG_PING_ARGS="-f 10.10.1.2"
 #
 # Note: since report_one_shot.r also has locality (pwd) dependencies this is a little tricky
 # Probably need to wait till all data is gathered, then recursively go through manifest to run analysis

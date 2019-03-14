@@ -52,6 +52,7 @@ read_latency <- function(line) {
 # Function to apply latency overheads to gathered RTTs
 # The bug is that this doesn't work when there are multiple ping rounds stacked in the same trace
 #
+
 applyLatencies <- function(in_rtts, ingresses, egresses) {
 
   res <- c()
@@ -65,11 +66,22 @@ applyLatencies <- function(in_rtts, ingresses, egresses) {
 
     if (in_rtts$seq[[i]] < lastSeq) {
       curRun <- curRun + 1
+      cat("on to run", curRun, "\n")
     }
     lastSeq <- in_rtts$seq[[i]]
 
-    ing_lat <- ingresses$latency[ingresses$seq == in_rtts$seq[[i]]][[curRun]]
-    egr_lat <- egresses$latency[egresses$seq == in_rtts$seq[[i]]][[curRun]]
+    ing_possible <- ingresses$latency[ingresses$seq == in_rtts$seq[[i]]]
+    if (length(ing_possible) >= curRun) {
+      ing_lat <- ing_possible[[curRun]]
+    } else {
+      ing_lat <- NULL
+    }
+    egr_possible <- egresses$latency[egresses$seq == in_rtts$seq[[i]]]
+    if (length(egr_possible) >= curRun) {
+      egr_lat <- egr_possible[[curRun]]
+    } else {
+      egr_lat <- NULL
+    }
     if (length(ing_lat) != 0 && length(egr_lat) != 0) {
       res <- c(res, in_rtts$rtt[[i]] - (ing_lat + egr_lat))
       tss <- c(tss, in_rtts$ts[[i]])
