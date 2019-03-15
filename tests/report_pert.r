@@ -17,7 +17,7 @@ data_path <- args[1]
 #
 # Compute rough confidence interval
 #
-confidence <- 0.90
+confidence <- 0.95
 getConfidence <- function(sd, length) {
   a <- confidence + 0.5 * (1.0 - confidence)
   t_an <- qt(a, df=length-1)
