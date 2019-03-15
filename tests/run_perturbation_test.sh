@@ -8,7 +8,8 @@
 
 export B="===================="
 
-export NUM_ROUNDS=10
+export NUM_ROUNDS=1
+#export NUM_ROUNDS=10
 
 export PING_ARGS="-D -i 0.0 -s 1472 -c 10000"
 export TARGET="10.10.1.2"
