@@ -96,13 +96,16 @@ error <- c(
   getConfidence(sd(native$push_event), length(native$push_event))
 )
 
-ybnds <- c(0, max(error + as.vector(data)))
+#ybnds <- c(0, max(error + as.vector(data)))
+ybnds <- c(0, 1)
 
 pdf(file=paste(data_path, "/means.pdf", sep=""))
 barCenters <- barplot(data, beside=T, main="",
         xlab="", ylab=expression("Perturbation ("*mu*"s)"),
         ylim=ybnds,
         names.arg=c("Container", "Native"),
+        args.legend=list(y=1.1, ncol=2),
+        space=rep(c(1, 0, 0, 0, 0.3, 0, 0.3), 2),
         legend=c("sys_enter", "net_dev_start_xmit", "netif_receive_skb", "sys_exit", "register_entry", "register_exit", "push_event"),
         col=c("darkblue", "red", "orange", "lightblue", "pink", "purple", "green"))
 
