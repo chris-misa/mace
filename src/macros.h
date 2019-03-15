@@ -47,6 +47,7 @@
 { \
   int index = hash_min((key), MACE_LATENCY_TABLE_BITS); \
   long unsigned flags; \
+  START_PERT_TIMER(register_entry_enter); \
   \
   spin_lock_irqsave(&table[index].lock, flags); \
   table[index].enter = rdtsc(); \
@@ -54,6 +55,7 @@
   table[index].key = (key); \
   table[index].valid = 1; \
   spin_unlock_irqrestore(&table[index].lock, flags); \
+  STOP_PERT_TIMER(register_entry_enter, mace_register_entry_pert); \
 }
 
 /*
@@ -71,6 +73,7 @@
   unsigned long long dt = 0; \
   struct mace_namespace_entry *saved_ns = NULL; \
   unsigned long flags; \
+  START_PERT_TIMER(register_exit_enter); \
   \
   spin_lock_irqsave(&table[index].lock, flags); \
   if (table[index].key == (key) && table[index].valid) { \
@@ -91,6 +94,7 @@
     \
     if (saved_ns != NULL) { \
       mace_push_event(&saved_ns->buf, dt, direction, saved_ns->ns_id, enter, pkt_id); \
+      STOP_PERT_TIMER(register_exit_enter, mace_register_exit_pert); \
     } \
   } \
 }

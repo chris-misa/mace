@@ -63,6 +63,9 @@ do
   echo 1 > /sys/class/mace/pert_net_dev_start_xmit
   echo 1 > /sys/class/mace/pert_netif_receive_skb
   echo 1 > /sys/class/mace/pert_sys_exit
+  echo 1 > /sys/class/mace/pert_register_entry
+  echo 1 > /sys/class/mace/pert_register_exit
+  echo 1 > /sys/class/mace/pert_push_event
   echo "  Reset mace perturbation counters"
 
   #
@@ -75,6 +78,9 @@ do
   cat /sys/class/mace/pert_net_dev_start_xmit >> native_net_dev_start_xmit.pert
   cat /sys/class/mace/pert_netif_receive_skb >> native_netif_receive_skb.pert
   cat /sys/class/mace/pert_sys_exit >> native_sys_exit.pert
+  cat /sys/class/mace/pert_register_entry >> native_register_entry.pert
+  cat /sys/class/mace/pert_register_exit >> native_register_exit.pert
+  cat /sys/class/mace/pert_push_event >> native_push_event.pert
   echo "  Retrieved native perturbations"
 
   echo 0 > /sys/class/mace/on
@@ -109,6 +115,9 @@ do
   echo 1 > /sys/class/mace/pert_net_dev_start_xmit
   echo 1 > /sys/class/mace/pert_netif_receive_skb
   echo 1 > /sys/class/mace/pert_sys_exit
+  echo 1 > /sys/class/mace/pert_register_entry
+  echo 1 > /sys/class/mace/pert_register_exit
+  echo 1 > /sys/class/mace/pert_push_event
   echo "  Reset mace perturbation counters"
 
   docker exec $PING_CONTAINER_NAME \
@@ -123,6 +132,12 @@ do
     cat /sys/class/mace/pert_netif_receive_skb >> container_netif_receive_skb.pert
   docker exec $PING_CONTAINER_NAME \
     cat /sys/class/mace/pert_sys_exit >> container_sys_exit.pert
+  docker exec $PING_CONTAINER_NAME \
+    cat /sys/class/mace/pert_register_entry >> container_register_entry.pert
+  docker exec $PING_CONTAINER_NAME \
+    cat /sys/class/mace/pert_register_exit >> container_register_exit.pert
+  docker exec $PING_CONTAINER_NAME \
+    cat /sys/class/mace/pert_push_event >> container_push_event.pert
   echo "  Retrieved container perturbations"
 
   docker exec $PING_CONTAINER_NAME \

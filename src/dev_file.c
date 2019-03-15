@@ -28,6 +28,9 @@ extern struct mace_perturbation mace_net_dev_start_xmit_pert;
 extern struct mace_perturbation mace_netif_receive_skb_pert;
 extern struct mace_perturbation mace_sys_exit_pert;
 
+extern struct mace_perturbation mace_register_entry_pert;
+extern struct mace_perturbation mace_register_exit_pert;
+extern struct mace_perturbation mace_push_event_pert;
 
 //
 // 'mace/on' class attribute
@@ -71,6 +74,28 @@ CLASS_ATTR_RW(pert_netif_receive_skb);
 static ssize_t pert_sys_exit_show(struct class *class, struct class_attribute *attr, char *buf);
 static ssize_t pert_sys_exit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 CLASS_ATTR_RW(pert_sys_exit);
+
+
+//
+// 'mace/pert_register_entry' class attribute
+//
+static ssize_t pert_register_entry_show(struct class *class, struct class_attribute *attr, char *buf);
+static ssize_t pert_register_entry_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
+CLASS_ATTR_RW(pert_register_entry);
+
+//
+// 'mace/pert_register_exit' class attribute
+//
+static ssize_t pert_register_exit_show(struct class *class, struct class_attribute *attr, char *buf);
+static ssize_t pert_register_exit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
+CLASS_ATTR_RW(pert_register_exit);
+
+//
+// 'mace/pert_push_event' class attribute
+//
+static ssize_t pert_push_event_show(struct class *class, struct class_attribute *attr, char *buf);
+static ssize_t pert_push_event_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
+CLASS_ATTR_RW(pert_push_event);
 
 
 //
@@ -151,6 +176,18 @@ mace_init_dev(void)
   }
   if (class_create_file(latency_queue_class, &class_attr_pert_sys_exit) < 0) {
     printk(KERN_INFO "Mace: failed to create 'pert_sys_exit' class attribute\n");
+    goto exit_error;
+  }
+  if (class_create_file(latency_queue_class, &class_attr_pert_register_entry) < 0) {
+    printk(KERN_INFO "Mace: failed to create 'pert_register_entry' class attribute\n");
+    goto exit_error;
+  }
+  if (class_create_file(latency_queue_class, &class_attr_pert_register_exit) < 0) {
+    printk(KERN_INFO "Mace: failed to create 'pert_register_exit' class attribute\n");
+    goto exit_error;
+  }
+  if (class_create_file(latency_queue_class, &class_attr_pert_push_event) < 0) {
+    printk(KERN_INFO "Mace: failed to create 'pert_push_event' class attribute\n");
     goto exit_error;
   }
 
@@ -444,3 +481,70 @@ pert_sys_exit_store(struct class *class, struct class_attribute *attr, const cha
   return count;
 }
 
+//
+// 'mace/pert_register_entry' class attribute
+//
+static ssize_t
+pert_register_entry_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+  ssize_t offset = 0;
+  if (mace_register_entry_pert.count != 0) {
+  offset += snprintf(buf + offset,
+                     PAGE_SIZE - offset,
+                     "%llu\n",
+                     mace_cycles_to_ns(mace_register_entry_pert.sum / mace_register_entry_pert.count));
+  }
+  return offset;
+}
+static ssize_t
+pert_register_entry_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+  CLEAR_PERT_COUNTER(mace_register_entry_pert);
+  return count;
+}
+
+
+//
+// 'mace/pert_register_exit' class attribute
+//
+static ssize_t
+pert_register_exit_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+  ssize_t offset = 0;
+  if (mace_register_exit_pert.count != 0) {
+  offset += snprintf(buf + offset,
+                     PAGE_SIZE - offset,
+                     "%llu\n",
+                     mace_cycles_to_ns(mace_register_exit_pert.sum / mace_register_exit_pert.count));
+  }
+  return offset;
+}
+static ssize_t
+pert_register_exit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+  CLEAR_PERT_COUNTER(mace_register_exit_pert);
+  return count;
+}
+
+
+//
+// 'mace/pert_push_event' class attribute
+//
+static ssize_t
+pert_push_event_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+  ssize_t offset = 0;
+  if (mace_push_event_pert.count != 0) {
+  offset += snprintf(buf + offset,
+                     PAGE_SIZE - offset,
+                     "%llu\n",
+                     mace_cycles_to_ns(mace_push_event_pert.sum / mace_push_event_pert.count));
+  }
+  return offset;
+}
+static ssize_t
+pert_push_event_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+  CLEAR_PERT_COUNTER(mace_push_event_pert);
+  return count;
+}

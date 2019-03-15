@@ -63,6 +63,7 @@ mace_push_event(struct mace_ring_buffer *buf,
 #define mace_push_event(buf, new_latency, new_type, new_ns_id, new_ts, new_pkt_id) \
 { \
   int w; \
+  START_PERT_TIMER(push_event_enter); \
   \
   /* Double 'and' for race-safe modular arithmetic without locking */ \
   w = atomic_inc_return(&(buf)->write) & MACE_EVENT_QUEUE_MASK; \
@@ -77,6 +78,7 @@ mace_push_event(struct mace_ring_buffer *buf,
   (buf)->queue[w].ns_id = new_ns_id; \
   (buf)->queue[w].ts = new_ts; \
   (buf)->queue[w].pktid = new_pkt_id; \
+  STOP_PERT_TIMER(push_event_enter, mace_push_event_pert); \
 }
 
 //
