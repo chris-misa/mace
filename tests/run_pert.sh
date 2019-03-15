@@ -25,6 +25,8 @@ export CONTAINER_PING_CMD="/iputils/ping"
 export PING_CONTAINER_IMAGE="chrismisa/slow-ping"
 export PING_CONTAINER_NAME="ping-container"
 
+ANALYSIS_CMD="Rscript report_pert.r"
+
 export META_DATA="metadata"
 export MANIFEST="manifest"
 
@@ -153,6 +155,10 @@ do
 
 done
 
+popd > /dev/null
+
 rmmod mace
+
+$ANALYSIS_CMD ${DATE_STR}
 
 echo Done.
