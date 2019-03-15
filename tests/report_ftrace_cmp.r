@@ -66,6 +66,8 @@ if (file.exists(SAVED_DATA_PATH)) {
   ftrace_native_monitored <- data$ftrace_native_monitored
   ftrace_container_monitored <- data$ftrace_container_monitored
 
+  container_counts <- data$container_counts
+
 } else {
 
   native_control <- list(mean=c(), median=c(), sd=c(), len=c())
@@ -134,8 +136,9 @@ if (file.exists(SAVED_DATA_PATH)) {
     mace_native_monitored=mace_native_monitored,
     mace_container_monitored=mace_container_monitored,
     ftrace_native_monitored=ftrace_native_monitored,
-    ftrace_container_monitored=ftrace_container_monitored
-  ))
+    ftrace_container_monitored=ftrace_container_monitored,
+    container_counts=container_counts
+  ), file=SAVED_DATA_PATH)
 }
 
 
@@ -156,7 +159,8 @@ ftrace_container_perturbation_mean <- ftrace_container_monitored$mean - containe
 ftrace_container_perturbation_conf <- getConfidence(ftrace_container_monitored$sd + container_control$sd, min(ftrace_container_monitored$len, container_control$len))
 
 xbnds <- range(container_counts)
-ybnds <- c(0, max(container_perturbation_mean + container_perturbation_conf))
+ybnds <- c(0, max(ftrace_container_perturbation_mean + ftrace_container_perturbation_conf,
+                  mace_container_perturbation_mean + mace_container_perturbation_conf))
 pdf(file=paste(data_path, "/perturbations.pdf", sep=""))
 plot(0, type="n", ylim=ybnds, xlim=xbnds,
      xlab="Number of traffic flows",
