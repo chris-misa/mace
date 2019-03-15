@@ -19,7 +19,7 @@ data_path <- args[1]
 #
 # Compute rough confidence interval
 #
-confidence <- 0.90
+confidence <- 0.95
 getConfidence <- function(sd, length) {
   a <- confidence + 0.5 * (1.0 - confidence)
   t_an <- qt(a, df=length-1)
@@ -260,16 +260,24 @@ dev.off()
 
 native_control_socket_conf <- getConfidence(native_control_socket$sd, native_control_socket$len)
 native_corrected_conf <- getConfidence(native_corrected$sd, native_corrected$len)
+
+container_control_conf <- getConfidence(container_control$sd, container_control$len)
 container_corrected_conf <- getConfidence(container_corrected$sd, container_corrected$len)
 
 xbnds <- range(container_counts)
-ybnds <- c(0, max(native_control_socket$mean - native_control_hw$mean))
+ybnds <- c(0, max(container_control$mean - native_control_hw$mean))
 pdf(file=paste(data_path, "/mean_diffs.pdf", sep=""))
 plot(0, type="n", ylim=ybnds, xlim=xbnds,
      xlab="Number of traffic flows",
      ylab=expression(paste("RTT Mean Difference (",mu,"s)", sep="")),
      main="")
 
+
+lines(container_counts, container_control$mean - native_control_hw$mean, col="blue", type="l")
+drawArrows(container_counts,
+           container_control$mean - native_control_hw$mean,
+           container_control_conf,
+           "blue")
 lines(container_counts, native_control_socket$mean - native_control_hw$mean, col="green", type="l")
 drawArrows(container_counts,
            native_control_socket$mean - native_control_hw$mean,
@@ -287,12 +295,54 @@ drawArrows(container_counts,
            "black")
 
 legend("topleft",
-  legend=c("Native Reference", "Native Corrected", "Container Corrected"),
-  col=c("green", "gray", "black"),
+  legend=c("Native Reference", "Native Corrected", "Container Reference", "Container Corrected"),
+  col=c("green", "gray", "blue", "black"),
   cex=0.8,
   lty=1,
   bg="white")
 dev.off()
+
+
+#
+# Perturbation Diffs
+#
+
+native_perturbation_mean <- native_monitored$mean - native_control$mean
+native_perturbation_conf <- getConfidence(native_monitored$sd + native_control$sd, min(native_monitored$len, native_control$len))
+
+
+container_perturbation_mean <- container_monitored$mean - container_control$mean
+container_perturbation_conf <- getConfidence(container_monitored$sd + container_control$sd, min(container_monitored$len, container_control$len))
+
+xbnds <- range(container_counts)
+ybnds <- c(0, max(container_perturbation_mean + container_perturbation_conf))
+pdf(file=paste(data_path, "/perturbation_diffs.pdf", sep=""))
+plot(0, type="n", ylim=ybnds, xlim=xbnds,
+     xlab="Number of traffic flows",
+     ylab=expression(paste("RTT Mean Perturbation (",mu,"s)", sep="")),
+     main="")
+
+
+lines(container_counts, native_perturbation_mean, col="gray", type="l")
+drawArrows(container_counts,
+           native_perturbation_mean,
+           native_perturbation_conf,
+           "gray")
+lines(container_counts, container_perturbation_mean, col="black", type="l")
+drawArrows(container_counts,
+           container_perturbation_mean,
+           container_perturbation_conf,
+           "black")
+
+legend("topleft",
+  legend=c("Native", "Container"),
+  col=c("gray", "black"),
+  cex=0.8,
+  lty=1,
+  bg="white")
+dev.off()
+
+
 
 
 #
@@ -330,7 +380,7 @@ ybnds <- range(container_drops, native_drops)
 pdf(file=paste(data_path, "/packet_drop.pdf", sep=""))
 plot(0, type="n", ylim=ybnds, xlim=xbnds,
      xlab="Number of traffic flows",
-     ylab="Percent packets",
+     ylab="Percent of packets",
      main="")
 
 lines(container_counts, native_drops, col="gray", type="l")
@@ -343,7 +393,6 @@ legend("topright",
   lty=1,
   bg="white")
 dev.off()
-
 
 
 
