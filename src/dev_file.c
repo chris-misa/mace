@@ -23,6 +23,7 @@ extern struct timeval mace_tsc_offset;
 //
 // Mace internal perturbation tracking from module.c
 //
+#ifdef MACE_PERT_ENABLED
 extern struct mace_perturbation mace_sys_enter_pert;
 extern struct mace_perturbation mace_net_dev_start_xmit_pert;
 extern struct mace_perturbation mace_netif_receive_skb_pert;
@@ -31,6 +32,7 @@ extern struct mace_perturbation mace_sys_exit_pert;
 extern struct mace_perturbation mace_register_entry_pert;
 extern struct mace_perturbation mace_register_exit_pert;
 extern struct mace_perturbation mace_push_event_pert;
+#endif
 
 //
 // 'mace/on' class attribute
@@ -50,52 +52,66 @@ CLASS_ATTR_RW(sync);
 //
 // 'mace/pert_sys_enter' class attribute
 //
+#ifdef MACE_PERT_ENABLED
 static ssize_t pert_sys_enter_show(struct class *class, struct class_attribute *attr, char *buf);
 static ssize_t pert_sys_enter_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 CLASS_ATTR_RW(pert_sys_enter);
+#endif
 
 //
 // 'mace/pert_net_dev_start_xmit' class attribute
 //
+#ifdef MACE_PERT_ENABLED
 static ssize_t pert_net_dev_start_xmit_show(struct class *class, struct class_attribute *attr, char *buf);
 static ssize_t pert_net_dev_start_xmit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 CLASS_ATTR_RW(pert_net_dev_start_xmit);
+#endif
 
 //
 // 'mace/pert_netif_receive_skb' class attribute
 //
+#ifdef MACE_PERT_ENABLED
 static ssize_t pert_netif_receive_skb_show(struct class *class, struct class_attribute *attr, char *buf);
 static ssize_t pert_netif_receive_skb_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 CLASS_ATTR_RW(pert_netif_receive_skb);
+#endif
 
 //
 // 'mace/pert_sys_exit' class attribute
 //
+#ifdef MACE_PERT_ENABLED
 static ssize_t pert_sys_exit_show(struct class *class, struct class_attribute *attr, char *buf);
 static ssize_t pert_sys_exit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 CLASS_ATTR_RW(pert_sys_exit);
+#endif
 
 
 //
 // 'mace/pert_register_entry' class attribute
 //
+#ifdef MACE_PERT_ENABLED
 static ssize_t pert_register_entry_show(struct class *class, struct class_attribute *attr, char *buf);
 static ssize_t pert_register_entry_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 CLASS_ATTR_RW(pert_register_entry);
+#endif
 
 //
 // 'mace/pert_register_exit' class attribute
 //
+#ifdef MACE_PERT_ENABLED
 static ssize_t pert_register_exit_show(struct class *class, struct class_attribute *attr, char *buf);
 static ssize_t pert_register_exit_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 CLASS_ATTR_RW(pert_register_exit);
+#endif
 
 //
 // 'mace/pert_push_event' class attribute
 //
+#ifdef MACE_PERT_ENABLED
 static ssize_t pert_push_event_show(struct class *class, struct class_attribute *attr, char *buf);
 static ssize_t pert_push_event_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count);
 CLASS_ATTR_RW(pert_push_event);
+#endif
 
 
 //
@@ -161,7 +177,9 @@ mace_init_dev(void)
     goto exit_error;
   }
 
+
   // Add perturbation attributes
+#ifdef MACE_PERT_ENABLED
   if (class_create_file(latency_queue_class, &class_attr_pert_sys_enter) < 0) {
     printk(KERN_INFO "Mace: failed to create 'per_sys_enter' class attribute\n");
     goto exit_error;
@@ -190,6 +208,7 @@ mace_init_dev(void)
     printk(KERN_INFO "Mace: failed to create 'pert_push_event' class attribute\n");
     goto exit_error;
   }
+#endif
 
   if (device_create(latency_queue_class, NULL,
                     mace_latency_queue_major, NULL,
@@ -390,6 +409,12 @@ sync_store(struct class *class, struct class_attribute *attr, const char *but, s
 
 
 //
+// Perturbation files
+//
+
+#ifdef MACE_PERT_ENABLED
+
+//
 // 'mace/pert_sys_enter' class attribute
 //
 static ssize_t
@@ -548,3 +573,4 @@ pert_push_event_store(struct class *class, struct class_attribute *attr, const c
   CLEAR_PERT_COUNTER(mace_push_event_pert);
   return count;
 }
+#endif

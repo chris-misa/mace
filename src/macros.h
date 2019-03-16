@@ -18,6 +18,18 @@
 
 #include "ring_buffer.h"
 
+
+//
+// Uncomment this to get information dumped to the syslog and very very poor performance
+//
+// #define DEBUG
+
+//
+// Uncomment this to active self-perturbation monitoring
+//
+#define MACE_PERT_ENABLED
+
+
 //
 // Report latency approximations in nano seconds
 // Cycles / (1 000 Cycles / sec) * (1 000 000 000 nsec / sec)

@@ -6,7 +6,6 @@
 
 #include "module.h"
 
-// #define DEBUG
 
 // Test for ok ipv4 packets
 #ifdef DEBUG
@@ -72,6 +71,10 @@ static struct tracepoint *sys_exit_tracepoint;
 #define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
 
 
+//
+// Perturbation counters
+//
+#ifdef MACE_PERT_ENABLED
 struct mace_perturbation mace_sys_enter_pert;
 struct mace_perturbation mace_net_dev_start_xmit_pert;
 struct mace_perturbation mace_netif_receive_skb_pert;
@@ -80,6 +83,7 @@ struct mace_perturbation mace_sys_exit_pert;
 struct mace_perturbation mace_register_entry_pert;
 struct mace_perturbation mace_register_exit_pert;
 struct mace_perturbation mace_push_event_pert;
+#endif
 
 // Egress latency table
 static struct mace_latency egress_latencies[MACE_LATENCY_TABLE_SIZE];
@@ -349,6 +353,7 @@ mace_tsc_to_gettimeofday(unsigned long long tsc_val, struct timeval *tv)
 void
 mace_init_pert(void)
 {
+#ifdef MACE_PERT_ENABLED
   mace_sys_enter_pert.sum = 0;
   mace_sys_enter_pert.count = 0;
   mace_net_dev_start_xmit_pert.sum = 0;
@@ -363,6 +368,7 @@ mace_init_pert(void)
   mace_register_exit_pert.count = 0;
   mace_push_event_pert.sum = 0;
   mace_push_event_pert.count = 0;
+#endif
 }
 
 //
