@@ -30,7 +30,7 @@ getConfidence <- function(sd, length) {
 drawArrows <- function(xs, ys, sds, color) {
   arrows(xs, ys - sds,
          xs, ys + sds,
-         length=0.01, angle=90, code=3, col=color)
+         length=0.005, angle=90, code=3, col=color)
 }
 
 #
@@ -173,26 +173,28 @@ drawArrows(container_counts,
            mace_native_perturbation_mean,
            mace_native_perturbation_conf,
            "gray")
+
+lines(container_counts, ftrace_native_perturbation_mean, col="green", type="l")
+drawArrows(container_counts,
+           ftrace_native_perturbation_mean,
+           ftrace_native_perturbation_conf,
+           "green")
+
 lines(container_counts, mace_container_perturbation_mean, col="black", type="l")
 drawArrows(container_counts,
            mace_container_perturbation_mean,
            mace_container_perturbation_conf,
            "black")
 
-lines(container_counts, ftrace_native_perturbation_mean, col="pink", type="l")
-drawArrows(container_counts,
-           ftrace_native_perturbation_mean,
-           ftrace_native_perturbation_conf,
-           "pink")
-lines(container_counts, ftrace_container_perturbation_mean, col="purple", type="l")
+lines(container_counts, ftrace_container_perturbation_mean, col="blue", type="l")
 drawArrows(container_counts,
            ftrace_container_perturbation_mean,
            ftrace_container_perturbation_conf,
-           "purple")
+           "blue")
 
 legend("topleft",
   legend=c("MACE Native", "MACE Container", "ftrace Native", "ftrace Container"),
-  col=c("gray", "black", "pink", "purple"),
+  col=c("gray", "black", "green", "blue"),
   cex=0.8,
   lty=1,
   bg="white")

@@ -17,5 +17,6 @@ For example, the first 8 bytes for the following protocol headers contain:
 ## Synchronization
 
 Intra-kernel egress and ingress tables are protected by per-bin spin locks.
+Otherwise atomic integers are used to reduce possibility of data corruption due to race conditions.
 
 

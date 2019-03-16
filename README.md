@@ -30,10 +30,6 @@ The following files are created after module initilization:
 
 Reads from this file return outstanding egress and ingress latencies for the current net namespace and remove them from the queue.
 
-* `mace_pipe`
-
-Reads from this file block, returning egress and ingress latencies in nanoseconds as they are computed by the module.
-
 
 ### /sys/class/mace/
 
@@ -45,5 +41,5 @@ network namespace.
 
 ## Containers
 
-Generally containers will need explicit permission to access the mace interface.
+Generally, containers will need explicit permission to access the mace interface.
 In docker, user `--device /dev/mace:/dev/mace` and `-v /sys/class/mace:/sys/class/mace` to allow a container acces to both latencies and knobs.
