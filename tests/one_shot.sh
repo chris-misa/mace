@@ -53,7 +53,7 @@ do
   #
   docker run -itd --name=$PING_CONTAINER_NAME \
                   --entrypoint=/bin/bash \
-		  --cpuset-cpus=0-0 \
+            		  --cpuset-cpus=0-0 \
                   $PING_CONTAINER_IMAGE \
                   > /dev/null
   echo "  Ping container up"
