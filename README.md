@@ -28,7 +28,7 @@ The following files are created after module initilization:
 
 * `mace`
 
-Reads from this file return outstanding egress and ingress latencies for the current net namespace and remove them from the queue.
+Reads from this file return outstanding egress and ingress latencies (in nanoseconds) for the current net namespace and remove them from the queue.
 
 
 ### /sys/class/mace/

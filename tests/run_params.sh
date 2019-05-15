@@ -20,13 +20,11 @@ export OUTER_DEV_NAME="eno1d1"
 export MACE_PATH=`echo ${PWD%${PWD##*/}}`
 
 export NATIVE_PING_CMD="${MACE_PATH}/iputils/ping"
-export NATIVE_PING_HW_CMD="${MACE_PATH}/iputils_hw/ping"
 export CONTAINER_PING_CMD="/iputils/ping"
 
 export PING_CONTAINER_IMAGE="chrismisa/slow-ping"
 export PING_CONTAINER_NAME="ping-container"
 
-export EXEC_ONE_SHOT_CMD="$(pwd)/one_shot.sh"
 export ANALYSIS_CMD="Rscript report_params.r"
 
 export META_DATA="metadata"
