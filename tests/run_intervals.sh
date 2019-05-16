@@ -6,8 +6,8 @@
 
 export B="===================="
 
-#export NUM_ROUNDS=5
-export NUM_ROUNDS=1
+export NUM_ROUNDS=5
+#export NUM_ROUNDS=1
 
 export PING_ARGS="-D -s 16 -c 200"
 
