@@ -16,7 +16,7 @@ export INTERVALS="0.0 0.0001 0.0002 0.0004 0.0008 0.0016 0.0032 0.0064 0.0128 0.
 export TARGET="10.10.1.2"
 
 export OUTER_DEV_ID=5
-export OUTER_DEV_NAME="ens1f1"
+export OUTER_DEV_NAME="eno1d1"
 
 export MACE_PATH=`echo ${PWD%${PWD##*/}}`
 
