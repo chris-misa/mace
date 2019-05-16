@@ -15,7 +15,7 @@ export SIZES="`seq 16 100 1472`"
 export TARGET="10.10.1.2"
 
 export OUTER_DEV_ID=5
-export OUTER_DEV_NAME="ens1f1"
+export OUTER_DEV_NAME="eno1d1"
 
 export MACE_PATH=`echo ${PWD%${PWD##*/}}`
 
