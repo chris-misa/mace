@@ -6,7 +6,7 @@
 
 export B="===================="
 
-export NUM_ROUNDS=5
+export NUM_ROUNDS=1
 
 export PING_ARGS="-D -i 0.0 -c 2000"
 
@@ -19,7 +19,8 @@ export OUTER_DEV_NAME="eno1d1"
 
 export MACE_PATH=`echo ${PWD%${PWD##*/}}`
 
-export NATIVE_PING_CMD="${MACE_PATH}/iputils/ping"
+#export NATIVE_PING_CMD="${MACE_PATH}/iputils/ping"
+export NATIVE_PING_CMD="ping"
 export CONTAINER_PING_CMD="/iputils/ping"
 
 export PING_CONTAINER_IMAGE="chrismisa/slow-ping"

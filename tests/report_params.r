@@ -74,7 +74,7 @@ if (file.exists(SAVED_DATA_PATH)) {
     }
     read <- 0
 
-    linePattern <- ".*_([0-9]+)\\.ping"
+    linePattern <- ".*_([0-9\\.]+)\\.ping"
     matches <- grep(linePattern, line, value=T)
 
     # Branch for ping files
