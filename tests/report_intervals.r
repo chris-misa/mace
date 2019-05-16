@@ -117,18 +117,19 @@ if (file.exists(SAVED_DATA_PATH)) {
 # Plot means
 #
 meanDiffs <- rtts$container$means - rtts$native$means
+lTime <- rtts$native$sizes
 
-f <- lm(Y~X, data=data.frame(X=rtts$native$sizes, Y=meanDiffs))
+f <- lm(Y~X, data=data.frame(X=lTime, Y=meanDiffs))
 s <- summary(f)
 capture.output(s, file=paste(data_path, "/summary.txt", sep=""))
 
 pdf(file=paste(data_path, "/mean_diffs.pdf", sep=""))
 par(mar=c(4,4,2,2))
 # add 8 to payload size to get packet size
-plot(rtts$native$sizes + 8, meanDiffs, pch=19, col=rgb(0,0,0,0.5),
+plot(lTime, meanDiffs, pch=19, col=rgb(0,0,0,0.5),
     xlab="Packet Size (bytes)",
     ylab=expression(paste("RTT Mean Difference (",mu,"s)", sep="")),
-    main="")
+    main="", log="x")
 abline(f)
 dev.off()
 

@@ -6,11 +6,12 @@
 
 export B="===================="
 
-export NUM_ROUNDS=5
+#export NUM_ROUNDS=5
+export NUM_ROUNDS=1
 
-export PING_ARGS="-D -i 0.0 -c 2000"
+export PING_ARGS="-D -s 16 -c 200"
 
-export SIZES="`seq 16 100 1472`"
+export INTERVALS="0.0 0.0001 0.0002 0.0004 0.0008 0.0016 0.0032 0.0064 0.0128 0.0256 0.0512 0.1024"
 
 export TARGET="10.10.1.2"
 
@@ -57,26 +58,26 @@ echo "  Ping container up"
 for R in `seq 1 $NUM_ROUNDS`
 do
   echo $B Round $R $B
-  for S in $SIZES
+  for I in $INTERVALS
   do
 
-    echo "  Running with size: $S"
+    echo "  Running with interval: $I"
 
     #
     # Native Control userspace base-line
     #
-    taskset 0x1 $NATIVE_PING_CMD $PING_ARGS -s $S $TARGET >> ${R}native_${S}.ping
+    taskset 0x1 $NATIVE_PING_CMD $PING_ARGS -i $I $TARGET >> ${R}native_${I}.ping
     echo "    Took native control"
-    echo "${R}native_${S}.ping" >> $MANIFEST
+    echo "${R}native_${I}.ping" >> $MANIFEST
     $PAUSE_CMD
     
     #
     # Container Control base-line
     #
     docker exec $PING_CONTAINER_NAME \
-      $CONTAINER_PING_CMD $PING_ARGS -s $S $TARGET >> ${R}container_${S}.ping
+      $CONTAINER_PING_CMD $PING_ARGS -i $I $TARGET >> ${R}container_${I}.ping
     echo "    Took container control"
-    echo "${R}container_${S}.ping" >> $MANIFEST
+    echo "${R}container_${I}.ping" >> $MANIFEST
     $PAUSE_CMD
 
   done

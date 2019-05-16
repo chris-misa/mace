@@ -4,21 +4,23 @@
 # Execute the one-shot routine once for a series of added iperf traffic pairs
 #
 
-IPERF_PAIRS_MAX=32
 IPERF_PAIRS_STEP=1
+IPERF_PAIRS_MAX=1
+#IPERF_PAIRS_MAX=32
 
 export TARGET_CPU=0 # Starting point to RR CPU assignment of iperf server / client pairs
 MAX_CPUS=16 # Total number of CPUs to use on this machine
 
 export B="===================="
 
-export NUM_ROUNDS=5
+#export NUM_ROUNDS=5
+export NUM_ROUNDS=2
 
 export PING_ARGS="-D -i 0.0 -s 1472 -c 2000"
 export TARGET="10.10.1.2"
 
-export OUTER_DEV_ID=3
-export OUTER_DEV_NAME="eno1d1"
+export OUTER_DEV_ID=5
+export OUTER_DEV_NAME="ens1f1"
 
 export MACE_PATH=`echo ${PWD%${PWD##*/}}`
 
