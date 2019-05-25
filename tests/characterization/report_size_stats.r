@@ -140,7 +140,6 @@ dev.off()
 #
 # Plot raw data values (not as means)
 #
-colors <- rep(c(rgb(0,0,0,0.2), rgb(0,0,0,0.2)), length(rtts$native$raw))
 
 nativeRawFrame <- data.frame(rtt=c(), size=c())
 for (i in 1:length(rtts$native$sizes)) {
@@ -159,22 +158,43 @@ for (i in 1:length(rtts$container$sizes)) {
 pdf(file=paste(data_path, "/raw_data_native.pdf", sep=""))
 par(mar=c(4,4,2,2), cex=0.8)
 stripchart(rtt~size, data=nativeRawFrame,
-        vertical=T, pch=20, col=colors, ylim=c(0,100))
+        vertical=T, pch=20, col=rgb(0,0,0,0.2), ylim=c(0,100))
 dev.off()
 
 pdf(file=paste(data_path, "/raw_data_container.pdf", sep=""))
 par(mar=c(4,4,2,2), cex=0.8)
 stripchart(rtt~size, data=containerRawFrame,
-        vertical=T, pch=20, col=colors, ylim=c(0,100))
+        vertical=T, pch=20, col=rgb(0,0,0,0.2), ylim=c(0,100))
 dev.off()
 
-containerRawFrame$size <- containerRawFrame$size + 4
+# This makes container strips fall into different levels of the size factor
+containerRawFrame$size <- containerRawFrame$size + 2
+
+colors <- rep(c(rgb(0,0,0,0.2), rgb(0.5,0,0,0.2)), length(rtts$native$raw))
 
 # Absolute hack to get both these on same page. . ..
-pdf(file=paste(data_path, "/raw_data.pdf", sep=""))
+pdf(file=paste(data_path, "/raw_data_100.pdf", sep=""))
 par(mar=c(4,4,2,2), cex=0.8)
 stripchart(rtt~size, data=rbind(nativeRawFrame, containerRawFrame),
         vertical=T, pch=20, col=colors, ylim=c(0,100))
+dev.off()
+
+pdf(file=paste(data_path, "/raw_data_200.pdf", sep=""))
+par(mar=c(4,4,2,2), cex=0.8)
+stripchart(rtt~size, data=rbind(nativeRawFrame, containerRawFrame),
+        vertical=T, pch=20, col=colors, ylim=c(0,200))
+dev.off()
+
+pdf(file=paste(data_path, "/raw_data_2000.pdf", sep=""))
+par(mar=c(4,4,2,2), cex=0.8)
+stripchart(rtt~size, data=rbind(nativeRawFrame, containerRawFrame),
+        vertical=T, pch=20, col=colors, ylim=c(0,2000))
+dev.off()
+
+pdf(file=paste(data_path, "/raw_data_max.pdf", sep=""))
+par(mar=c(4,4,2,2), cex=0.8)
+stripchart(rtt~size, data=rbind(nativeRawFrame, containerRawFrame),
+        vertical=T, pch=20, col=colors)
 dev.off()
 
 

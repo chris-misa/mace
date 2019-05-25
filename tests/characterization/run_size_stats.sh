@@ -6,7 +6,7 @@
 
 export B="===================="
 
-export NUM_ROUNDS=2
+export NUM_ROUNDS=5
 
 export PING_ARGS="-D -i 0.0 -c 2000"
 
@@ -31,7 +31,7 @@ export PAUSE_CMD="sleep 2"
 
 export DATE_STR=`date +%Y%m%d%H%M%S`
 
-export ANALYSIS_CMD="Rscript report_params.r"
+export ANALYSIS_CMD="Rscript report_size_stats.r"
 
 mkdir $DATE_STR
 pushd $DATE_STR > /dev/null
