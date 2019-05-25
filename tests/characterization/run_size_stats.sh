@@ -8,7 +8,8 @@ export B="===================="
 
 export NUM_ROUNDS=5
 
-export PING_ARGS="-D -i 0.0 -c 2000"
+#export PING_ARGS="-D -i 0.0 -c 2000"
+export PING_ARGS="-D -i 0.1 -c 100"
 
 export SIZES="`seq 16 100 1472`"
 
