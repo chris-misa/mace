@@ -67,7 +67,7 @@ static struct tracepoint *sys_exit_tracepoint;
 //
 // In-kernel packet tracking
 //
-#define MACE_LATENCY_TABLE_BITS 8
+#define MACE_LATENCY_TABLE_BITS 16
 #define MACE_LATENCY_TABLE_SIZE (1 << MACE_LATENCY_TABLE_BITS)
 
 
