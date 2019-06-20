@@ -57,3 +57,5 @@ pushd iputils_hw
 git checkout hwtimestamp
 make
 popd
+
+make
