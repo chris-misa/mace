@@ -1,2 +1,2 @@
 There is some potential confusion here since we moved from using iperf to flood ping to generate traffic.
-For example, run_iperf_bench.sh actually uses flood ping (via add_container_ping_remote.sh) NOT iperf to generate traffic.
+For example, run_bench.sh actually uses flood ping (via add_container_ping_remote.sh) NOT iperf to generate traffic.
