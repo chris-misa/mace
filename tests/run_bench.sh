@@ -4,7 +4,7 @@
 # Execute the one-shot routine once for a series of added iperf traffic pairs
 #
 
-IPERF_PAIRS_STEP=10
+IPERF_PAIRS_STEP=100
 #IPERF_PAIRS_MAX=1
 IPERF_PAIRS_MAX=400
 
