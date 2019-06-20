@@ -4,7 +4,7 @@
 # Execute the one-shot routine once for a series of added iperf traffic pairs
 #
 
-IPERF_PAIRS_STEP=100
+IPERF_PAIRS_STEP=10
 #IPERF_PAIRS_MAX=1
 IPERF_PAIRS_MAX=400
 
@@ -13,8 +13,8 @@ MAX_CPUS=16 # Total number of CPUs to use on this machine
 
 export B="===================="
 
-#export NUM_ROUNDS=5
-export NUM_ROUNDS=1
+export NUM_ROUNDS=5
+#export NUM_ROUNDS=1
 
 export PING_ARGS="-D -i 0.0 -s 1472 -c 2000"
 export TARGET="10.10.1.2"
