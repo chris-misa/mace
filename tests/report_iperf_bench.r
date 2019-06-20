@@ -67,9 +67,14 @@ while (T) {
 	if (length(line) == 0) {
 		break
 	}
-	container_counts <- c(container_counts, as.numeric(line))
 
-	data <- dget(paste(data_path, "/", line, "/summary", sep=""))
+	summaryPath <- paste(data_path, "/", line, "/summary", sep="")
+	if (!file.exists(summaryPath)) {
+		next
+	}
+	data <- dget(summaryPath)
+
+	container_counts <- c(container_counts, as.numeric(line))
 	
 	native_control$mean <- c(native_control$mean, data$native_control$mean)
 	native_control$median <- c(native_control$median, data$native_control$median)
