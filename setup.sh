@@ -3,6 +3,8 @@
 #
 # Install dependencies and do a little configuring
 #
+# Designed to work with Ubuntu 18.04 or similar systems
+#
 
 apt-get update
 
