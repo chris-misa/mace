@@ -43,3 +43,7 @@ network namespace.
 
 Generally, containers will need explicit permission to access the mace interface.
 In docker, user `--device /dev/mace:/dev/mace` and `-v /sys/class/mace:/sys/class/mace` to allow a container acces to both latencies and knobs.
+
+# Evaluations
+
+See the `tests` directory for the experiment scripts used for evaluation.
