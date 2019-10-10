@@ -1,0 +1,1 @@
+cmd_/users/bryced18/mace/mace.o := ld -m elf_x86_64 -z max-page-size=0x200000   -r -o /users/bryced18/mace/mace.o /users/bryced18/mace/src/module.o /users/bryced18/mace/src/ring_buffer.o /users/bryced18/mace/src/dev_file.o /users/bryced18/mace/src/namespace_set.o 
