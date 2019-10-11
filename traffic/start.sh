@@ -7,9 +7,10 @@ delay=$4
 
 ports=()
 FILE=var.txt
+echo file is $FILE
 if [ -f $FILE ];
 then
-        read port < FILE
+        read port < $FILE
 else
         port=8080
 fi
@@ -20,12 +21,12 @@ do
 	ports+=($port)
 	((port++))
 done
+echo $port > $FILE
 
 for ((i=0; i < numberOfClients; i++));
 do
 	index=$(($i%$numberOfServers))
-	port=${ports[$index]}
-	ssh node1 docker run -d clients1 $ip $port $delay
+	serverPort=${ports[$index]}
+	ssh node1 docker run -d clients1 $ip $serverPort $delay
 done
 
-echo $port > FILE
