@@ -1,2 +1,10 @@
 #!/bin/bash
-ssh node1 'echo "hello"'
+FILE=var.txt
+if [ -f $FILE ];
+then
+	read port < FILE
+else
+	port=8080
+fi
+
+echo $port

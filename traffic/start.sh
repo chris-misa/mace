@@ -1,17 +1,23 @@
 #!/bin/bash
 
-numberOfServers=$1
-numberOfClients=$2
-delay=$3
+ip=$1
+numberOfServers=$2
+numberOfClients=$3
+delay=$4
 
 ports=()
-port=8080
-ports+=($port)
+FILE=var.txt
+if [ -f $FILE ];
+then
+        read port < FILE
+else
+        port=8080
+fi
+
 for ((i=0; i < numberOfServers; i++));
 do 
-	serverName=server$i
-	docker run -d --name $serverName servers
-	ports+=($serverIp)
+	docker run -d --name server$port -p $port:80 servers
+	ports+=($port)
 	((port++))
 done
 
@@ -19,7 +25,7 @@ for ((i=0; i < numberOfClients; i++));
 do
 	index=$(($i%$numberOfServers))
 	port=${ports[$index]}
-	ssh node1 docker run -d --name client$port clients $port $delay
-	((port++))
+	ssh node1 docker run -d clients1 $ip $port $delay
 done
 
+echo $port > FILE
