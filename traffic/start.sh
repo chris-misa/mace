@@ -4,25 +4,22 @@ numberOfServers=$1
 numberOfClients=$2
 delay=$3
 
-ipAddresses=()
+ports=()
 port=8080
+ports+=($port)
 for ((i=0; i < numberOfServers; i++));
 do 
 	serverName=server$i
-	docker run -p $port:80 -d --name $serverName servers
-	serverIp=$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" $serverName)
-	ipAddresses+=($serverIp)
+	docker run -d --name $serverName servers
+	ports+=($serverIp)
 	((port++))
 done
 
-# ssh node1
-
-
-port=8080
 for ((i=0; i < numberOfClients; i++));
 do
-	ip=$(($i%$numberOfServers))
-	docker run -d client$i $ip $delay
+	index=$(($i%$numberOfServers))
+	port=${ports[$index]}
+	ssh node1 docker run -d --name client$port clients $port $delay
 	((port++))
 done
 
