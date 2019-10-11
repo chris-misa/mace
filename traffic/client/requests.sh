@@ -1,11 +1,12 @@
 #!/bin/bash
 
 ip=$1
-delay=$2
+port=$2
+delay=$3
 
 while true
 do
-	wget $1
+	wget $ip:$port
 	sleep $delay
 done
 
