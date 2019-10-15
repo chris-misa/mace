@@ -8,7 +8,7 @@ port=$2
 average=$3
 
 #create poisson distribution array from python script
-delays=($(python3 poisson.py average | tr -d '[],'))
+delays=($(python3 poisson.py $average | tr -d '[],'))
 
 i=0
 length="${#delays[@]}"
@@ -18,7 +18,7 @@ while true
 do
 	wget $ip:$port
 	i=$(($i%$length))
-	sleep $i
+	sleep ${delays[$i]}
 	((i++))
 done
 
