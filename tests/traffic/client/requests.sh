@@ -8,7 +8,7 @@ port=$2
 average=$3
 
 #create poisson distribution array from python script
-delays=($(python3 poisson.py $average | tr -d '[],'))
+delays=($(python3 exponential.py $average | tr -d '[],'))
 
 i=0
 length="${#delays[@]}"
