@@ -29,7 +29,7 @@ copyNumClients=$numberOfClients #used to decrement by number of containers just 
 for ((i=0; i < numberOfServers; i++));
 do
 	numContainers=$((copyNumClients / copyNumServers))
-	bash -c 'ssh node1 IP=$ip PORT=$beginningPort DELAY=$delay COMPOSE_PROJECT_NAME=client$i docker-compose up -d --scale clientContainers=$numContainers ' &
+	bash -c 'ssh node1 IP=$ip PORT=$beginningPort DELAY=$delay COMPOSE_PROJECT_NAME=client$i$beginningPort docker-compose up -d --scale clientContainers=$numContainers ' &
 	copyNumClients=$(( copyNumClients - numContainers ))
         (( copyNumServers-- ))
         (( beginningPort++ ))
