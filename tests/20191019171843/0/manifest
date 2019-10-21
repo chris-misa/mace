@@ -1,8 +1,0 @@
-native_hardware.ping
-native_socket.ping
-native_control.ping
-container_control.ping
-native_monitored.ping
-container_monitored.ping
-container_monitored.lat
-native_monitored.lat

@@ -1,43 +1,50 @@
 #!/bin/bash
 
-export ip
-export delay
-export beginningPort
-export numContainers
-export i
-ip=$1
+export IP=$1
+export DELAY=$4
+export BEGINNING_PORT
+export NUM_CONTAINERS
+export I
+export COMPOSE="$(pwd)/../traffic/docker-compose.yml"
 numberOfServers=$2
 numberOfClients=$3
-delay=$4
 FILE=var.txt
 
+echo path from start: $COMPOSE
+echo pwd: $(pwd)
+
+#if previous port numbers have been used, read in most recently used. Else, default to 8080.
 if [ -f $FILE ];
 then
-        read beginningPort < $FILE
+        read BEGINNING_PORT < $FILE
 else
-        beginningPort=8080
+        BEGINNING_PORT=8080
 fi
 
-endingPort=$(($beginningPort + $numberOfServers -1)) #defines the range of ports the server containers can use when scaling with docker-compose
-BPORT=$beginningPort EPORT=$endingPort docker-compose up --scale nginx=$numberOfServers -d #create server containers and pass in beginningPort andendingPort as environment variables to compose file
+endingPort=$(($BEGINNING_PORT + $numberOfServers -1)) #defines the range of ports the server containers can use when scaling with docker-compose
+BPORT=$BEGINNING_PORT EPORT=$endingPort COMPOSE_PROJECT_NAME=server$BEGINNING_PORT docker-compose -f $COMPOSE up --scale nginx=$numberOfServers -d #create server containers and pass in beginningPort andendingPort as environment variables to compose file
 
 
 copyNumServers=$numberOfServers # used to divide by number of remaining servers that still need containers to be distributed to them
 copyNumClients=$numberOfClients #used to decrement by number of containers just assigned
 
-
-for ((i=0; i < numberOfServers; i++));
+#create client containers and distribute even workload each server based on port number
+for ((I=0; I < numberOfServers; I++));
 do
-	numContainers=$((copyNumClients / copyNumServers))
-	bash -c 'ssh node1 IP=$ip PORT=$beginningPort DELAY=$delay COMPOSE_PROJECT_NAME=client$i$beginningPort docker-compose up -d --scale clientContainers=$numContainers ' &
-	copyNumClients=$(( copyNumClients - numContainers ))
+	NUM_CONTAINERS=$((copyNumClients / copyNumServers))
+	bash -c 'ssh node1 IP=$IP PORT=$BEGINNING_PORT DELAY=$DELAY COMPOSE_PROJECT_NAME=client$I$BEGINNING_PORT docker-compose up -d --scale clientContainers=$NUM_CONTAINERS ' &
+	copyNumClients=$(( copyNumClients - NUM_CONTAINERS ))
         (( copyNumServers-- ))
-        (( beginningPort++ ))
+        (( BEGINNING_PORT++ ))
 
 done
 wait
 
-echo $beginningPort > $FILE
+
+#write the last port used to the file var txt to be used again as the starting point for the next execution of this script
+echo $BEGINNING_PORT > $FILE
+
+
 #for ((i=0; i < numberOfClients; i++));
 #do	index=$(($i%$numberOfServers))
 #	serverPort=${ports[$index]}

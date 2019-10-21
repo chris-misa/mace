@@ -71,12 +71,13 @@ for iperf_pairs in `seq 0 $IPERF_PAIRS_STEP $IPERF_PAIRS_MAX`
 do
 	echo $B $iperf_pairs pairs $B
 	echo ip is $ip
-	echo serverRange is $serverRange
-	echo clientRange is $clientRange
+	echo servers are $servers
+	echo clients are $clients
 	echo delay is $delay
+	echo path is $EXPONENTIAL_TRAFFIC_SCENARIO
 	$EXPONENTIAL_TRAFFIC_SCENARIO $ip $servers $clients $delay # call start.sh to generate traffic scenario
 	servers=$((servers + serverRange))
-	clients=$((clients + clientsRange))
+	clients=$((clients + clientRange))
 
 #	[ $iperf_pairs -eq 0 ] || {
 #		for i in `seq 1 $IPERF_PAIRS_STEP`
