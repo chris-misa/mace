@@ -36,6 +36,8 @@ export PING_CONTAINER_IMAGE="chrismisa/slow-ping"        # Probe container image
 export PING_CONTAINER_NAME="ping-container"              # Name for probe container
 
 export EXEC_ONE_SHOT_CMD="$(pwd)/one_shot.sh"                    # Script which executes all RTT and latency measurements for a single traffic setting
+export EXPONENTIAL_TRAFFIC_SCENARIO="$(pwd)/traffic/start.sh"    # Script which executes the new traffic scenario with n to m relationship of servers to clients
+export DELETE_TRAFFIC_SCENARIO="$(pwd)/traffic/delete.sh"
 export ADD_IPERF_PAIR_CMD="$(pwd)/add_container_ping_remote.sh"  # Script to add another traffic continer
 export BG_PING_ARGS="-f 10.10.1.2"                               # Arguments to hand to ping in traffic containers
 
@@ -48,6 +50,10 @@ export MANIFEST="manifest"  # Name of manifest file with list of generated raw r
 export PAUSE_CMD="sleep 5"   # How long to pause between taking measurements
 
 export DATE_STR=`date +%Y%m%d%H%M%S`
+ip=$1
+serverRange=$2
+clientRange=$3
+delay=$4
 
 
 mkdir $DATE_STR
@@ -58,18 +64,30 @@ echo -e "$B lshw: $B\n $(lshw)\n" >> $META_DATA
 
 echo $B Running iperf traffic pairs test $B
 
+servers=$serverRange #Range(or distance along axis) between number of servers
+clients=$clientRange #Range(or distance along axis) between number of clients
+
 for iperf_pairs in `seq 0 $IPERF_PAIRS_STEP $IPERF_PAIRS_MAX`
 do
 	echo $B $iperf_pairs pairs $B
+	echo ip is $ip
+	echo servers are $servers
+	echo clients are $clients
+	echo delay is $delay
+	echo path is $EXPONENTIAL_TRAFFIC_SCENARIO
+	$EXPONENTIAL_TRAFFIC_SCENARIO $ip $servers $clients $delay # call start.sh to generate traffic scenario
+	servers=$((servers + serverRange))
+	clients=$((clients + clientRange))
 
-	[ $iperf_pairs -eq 0 ] || {
-		for i in `seq 1 $IPERF_PAIRS_STEP`
-		do
-			$ADD_IPERF_PAIR_CMD
-			TARGET_CPU=$(( (TARGET_CPU + 1) % MAX_CPUS ))
-		done
-		echo "  Added another $IPERF_PAIRS_STEP iperf pairs" 
-	}
+#	[ $iperf_pairs -eq 0 ] || {
+#		for i in `seq 1 $IPERF_PAIRS_STEP`
+#		do
+#			#EXPONENTIAL_TRAFFIC_SCENARIO arg1 arg 2
+#			$ADD_IPERF_PAIR_CMD
+#			TARGET_CPU=$(( (TARGET_CPU + 1) % MAX_CPUS ))
+#		done
+#		echo "  Added another $IPERF_PAIRS_STEP iperf pairs" 
+#	}
 
 	mkdir $iperf_pairs
 	pushd $iperf_pairs > /dev/null
@@ -84,6 +102,7 @@ done
 popd > /dev/null
 
 echo "  Shutting down containers"
+$DELETE_TRAFFIC_SCENARIO
 docker stop `docker ps -aq` > /dev/null
 docker rm `docker ps -aq` > /dev/null
 
