@@ -270,13 +270,14 @@ container_control_conf <- getConfidence(container_control$sd, container_control$
 container_corrected_conf <- getConfidence(container_corrected$sd, container_corrected$len)
 
 xbnds <- range(container_counts)
-ybnds <- c(0, max(container_control$mean - native_control_hw$mean))
-pdf(file=paste(data_path, "/mean_diffs.pdf", sep=""))
+ybnds <- c(0, max(container_control$mean - native_control_hw$mean) + 100)
+pdf(file=paste(data_path, "/mean_diffs.pdf", sep=""), width=4, height=4)
+par(mar=c(2.5, 2.5, 1, 1), mgp=c(1.1,0.2,0), tck=-0.02)
 plot(0, type="n", ylim=ybnds, xlim=xbnds,
      xlab="Number of traffic flows",
      ylab=expression(paste("RTT Mean Difference (",mu,"s)", sep="")),
      main="")
-
+grid()
 
 lines(container_counts, container_control$mean - native_control_hw$mean, col="blue", type="l")
 drawArrows(container_counts,
@@ -288,11 +289,11 @@ drawArrows(container_counts,
            native_control_socket$mean - native_control_hw$mean,
            native_control_socket_conf,
            "green")
-lines(container_counts, native_corrected$mean - native_control_hw$mean, col="gray", type="l")
-drawArrows(container_counts,
-           native_corrected$mean - native_control_hw$mean,
-           native_corrected_conf,
-           "gray")
+# lines(container_counts, native_corrected$mean - native_control_hw$mean, col="gray", type="l")
+# drawArrows(container_counts,
+#            native_corrected$mean - native_control_hw$mean,
+#            native_corrected_conf,
+#            "gray")
 lines(container_counts, container_corrected$mean - native_control_hw$mean, col="black", type="l")
 drawArrows(container_counts,
            container_corrected$mean - native_control_hw$mean,
@@ -300,10 +301,12 @@ drawArrows(container_counts,
            "black")
 
 legend("topleft",
-  legend=c("Native Reference", "Native Corrected", "Container Reference", "Container Corrected"),
-  col=c("green", "gray", "blue", "black"),
-  cex=0.8,
+  #legend=c("Native Reference", "Native Corrected", "Container Reference", "Container Corrected"),
+    # Ram's changes:
+  legend=c("Ground-truth RTT",  "Container - Baseline RTT", "Container - In-kernel Filtered RTT"),
+  col=c("green", "blue", "black"),
   lty=1,
+  cex=1,
   bg="white")
 dev.off()
 
