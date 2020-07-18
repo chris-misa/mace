@@ -272,9 +272,9 @@ container_corrected_conf <- getConfidence(container_corrected$sd, container_corr
 xbnds <- range(container_counts)
 ybnds <- c(0, max(container_control$mean - native_control_hw$mean) + 100)
 pdf(file=paste(data_path, "/mean_diffs.pdf", sep=""), width=4, height=4)
-par(mar=c(2.5, 2.5, 1, 1), mgp=c(1.1,0.2,0), tck=-0.02)
+par(mar=c(2.5, 2.5, 1, 1), mgp=c(1.1,0.2,0), tck=-0.02, cex=1.2)
 plot(0, type="n", ylim=ybnds, xlim=xbnds,
-     xlab="Number of traffic flows",
+     xlab="Number of Containers",
      ylab=expression(paste("RTT Mean Difference (",mu,"s)", sep="")),
      main="")
 grid()
@@ -306,7 +306,7 @@ legend("topleft",
   legend=c("Ground-truth RTT",  "Container - Baseline RTT", "Container - In-kernel Filtered RTT"),
   col=c("green", "blue", "black"),
   lty=1,
-  cex=1,
+  cex=0.8,
   bg="white")
 dev.off()
 
